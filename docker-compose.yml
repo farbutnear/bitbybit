@@ -1,0 +1,40 @@
+# Backend stack: Postgres + API + reminder worker.
+#   docker compose up --build
+# The API is then on http://localhost:8000 (and on your LAN IP, which is what the phone uses).
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: sysdrill
+      POSTGRES_PASSWORD: sysdrill
+      POSTGRES_DB: sysdrill
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sysdrill"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./backend
+    environment: &backend-env
+      SYSDRILL_DATABASE_URL: postgresql+psycopg://sysdrill:sysdrill@db:5432/sysdrill
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    build: ./backend
+    command: ["python", "-m", "app.worker"]
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      api:
+        condition: service_started  # the API creates tables and seeds content on startup
+
+volumes:
+  pgdata:

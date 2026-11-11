@@ -1,0 +1,357 @@
+{
+  "skills": [
+    { "id": "estimation", "title": "Requirements & estimation" },
+    { "id": "compute", "title": "Scaling compute" },
+    { "id": "storage", "title": "Data storage" },
+    { "id": "caching", "title": "Caching & CDNs" },
+    { "id": "async", "title": "Async processing" },
+    { "id": "consistency", "title": "Consistency & trade-offs" }
+  ],
+  "cards": [
+    {
+      "id": "estimation-avg-qps",
+      "skill": "estimation",
+      "kind": "numeric",
+      "prompt": "An app has 10 million daily active users. Each makes about 20 requests per day. What is the average request rate?",
+      "data": { "answer": 2315, "tolerance": 1.5, "unit": "requests/s", "hint": "A day is about 86,400 seconds (call it 10^5)." },
+      "explanation": "10M × 20 = 200M requests/day. 200M ÷ 86,400 s ≈ 2,300 req/s. Rounding a day to 10^5 s gives 2,000, which is close enough for capacity planning."
+    },
+    {
+      "id": "estimation-server-count",
+      "skill": "estimation",
+      "kind": "numeric",
+      "prompt": "Average load is 2,000 req/s and peak is 3× average. One server handles 500 req/s. What is the minimum number of servers to survive peak, with no headroom?",
+      "data": { "answer": 12, "tolerance": 1.0, "unit": "servers" },
+      "explanation": "Peak = 3 × 2,000 = 6,000 req/s. 6,000 ÷ 500 = 12 servers. In practice you add headroom (often 30-50%) and N+1 for a failed node, so you'd provision more."
+    },
+    {
+      "id": "estimation-storage-year",
+      "skill": "estimation",
+      "kind": "numeric",
+      "prompt": "Users create 50 million posts per day at about 1 KB each (text and metadata only). How much storage does one year of posts need?",
+      "data": { "answer": 18.25, "tolerance": 1.5, "unit": "TB" },
+      "explanation": "50M × 1 KB = 50 GB/day. × 365 ≈ 18 TB/year, before replication. With 3× replication that's roughly 55 TB of raw disk."
+    },
+    {
+      "id": "estimation-nfr",
+      "skill": "estimation",
+      "kind": "mcq",
+      "prompt": "Which of these is a non-functional requirement?",
+      "data": {
+        "options": [
+          "Users can follow other users",
+          "The feed loads in under 200 ms at p99",
+          "Users can attach images to posts",
+          "Admins can delete any post"
+        ],
+        "answer": 1
+      },
+      "explanation": "Functional requirements say what the system does (follow, post, delete). Non-functional ones say how well it does it: latency, availability, durability, scale. Latency targets like p99 < 200 ms drive most architecture decisions."
+    },
+    {
+      "id": "estimation-latency-dc",
+      "skill": "estimation",
+      "kind": "mcq",
+      "prompt": "Using the classic latency numbers, roughly how long is a network round trip within the same datacenter?",
+      "data": { "options": ["~0.5 ns", "~100 ns", "~0.5 ms", "~150 ms"], "answer": 2 },
+      "explanation": "Classic figures: L1 cache reference ≈ 0.5 ns, main memory ≈ 100 ns, same-datacenter round trip ≈ 0.5 ms, California ↔ Netherlands round trip ≈ 150 ms. Modern networks can be faster, but the orders of magnitude are what matter: a network hop costs ~1000× a memory read."
+    },
+
+    {
+      "id": "compute-stateless",
+      "skill": "compute",
+      "kind": "mcq",
+      "prompt": "Why do app servers usually need to be stateless before you scale them horizontally behind a load balancer?",
+      "data": {
+        "options": [
+          "Stateless servers use less CPU per request",
+          "Any request can go to any server, so servers can be added or removed without losing user state",
+          "Load balancers cannot forward cookies",
+          "Stateful servers cannot use HTTPS"
+        ],
+        "answer": 1
+      },
+      "explanation": "If session state lives in server memory, a user's next request must hit the same server (sticky sessions), and that state is lost when the server dies or is scaled in. Moving state to a shared store (Redis, the database, signed tokens) makes every server interchangeable."
+    },
+    {
+      "id": "compute-slow-node",
+      "skill": "compute",
+      "kind": "mcq",
+      "prompt": "The load balancer uses round-robin. What happens to app-3, and what fixes it?",
+      "data": {
+        "diagram": "            ┌─▶ app-1  p99 40 ms\n[ LB: RR ] ─┼─▶ app-2  p99 40 ms\n            └─▶ app-3  p99 900 ms (failing disk)",
+        "options": [
+          "Nothing; round-robin automatically avoids slow servers",
+          "app-3 gets a third of traffic, its queue grows and users hit huge tail latency; use least-connections plus health checks to drain it",
+          "The LB crashes because app-3 is slow",
+          "app-1 and app-2 slow down to match app-3"
+        ],
+        "answer": 1
+      },
+      "explanation": "Round-robin ignores how busy a server is, so a slow node keeps getting its full share and requests pile up there. Least-connections (or latency-aware) balancing sends less to it, and failing health checks remove it entirely."
+    },
+    {
+      "id": "compute-scaling-path",
+      "skill": "compute",
+      "kind": "order",
+      "prompt": "Put these in the typical order you'd apply them as a single-server web app grows.",
+      "data": {
+        "items": [
+          "Scale the single machine up (bigger box)",
+          "Move the database onto its own server",
+          "Add a load balancer and several stateless app servers",
+          "Add read replicas to the database",
+          "Shard the database"
+        ]
+      },
+      "explanation": "Each step buys headroom at increasing complexity. Vertical scaling is easiest. Separating the DB lets app servers multiply behind a load balancer. Read replicas handle read-heavy growth. Sharding comes last because it complicates queries, transactions and operations."
+    },
+    {
+      "id": "compute-l7",
+      "skill": "compute",
+      "kind": "mcq",
+      "prompt": "You want /api/* to go to one backend pool and /static/* to another. Which load balancer can do that?",
+      "data": {
+        "options": [
+          "Layer 4 (TCP/UDP) load balancer",
+          "Layer 7 (HTTP) load balancer",
+          "DNS round-robin",
+          "Any of them"
+        ],
+        "answer": 1
+      },
+      "explanation": "Routing by URL path requires reading the HTTP request, which only a Layer 7 load balancer does. Layer 4 sees IPs and ports only. It's cheaper and faster, but blind to paths, headers and cookies."
+    },
+
+    {
+      "id": "storage-composite-index",
+      "skill": "storage",
+      "kind": "mcq",
+      "prompt": "Hot query: SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC LIMIT 20. Which index serves it best?",
+      "data": {
+        "options": ["(created_at)", "(user_id)", "(user_id, created_at)", "(created_at, user_id)"],
+        "answer": 2
+      },
+      "explanation": "With (user_id, created_at), the DB jumps to that user's entries, which are already sorted by time, and reads 20 from the end. (user_id) alone finds the rows but must sort them. With created_at first, it has to scan everyone's recent orders to find this user's."
+    },
+    {
+      "id": "storage-replica-lag",
+      "skill": "storage",
+      "kind": "mcq",
+      "prompt": "Reads go to async read replicas. A user edits their profile, refreshes, and sees the old version. What's happening, and what's a targeted fix?",
+      "data": {
+        "options": [
+          "The write failed; retry writes 3 times",
+          "Replication lag; route that user's reads to the primary for a short window after they write (read-your-writes)",
+          "The cache is too large; shrink it",
+          "Replicas are corrupted; rebuild them nightly"
+        ],
+        "answer": 1
+      },
+      "explanation": "Async replicas apply writes a little later than the primary, so a read right after a write can hit a replica that hasn't caught up. Read-your-writes consistency only needs the writer to see their own change: pin their reads to the primary briefly, or wait until the replica has reached the write's log position."
+    },
+    {
+      "id": "storage-modulo-resharding",
+      "skill": "storage",
+      "kind": "numeric",
+      "prompt": "Keys are placed with shard = hash(key) % N. You go from N = 4 to N = 5 shards. Roughly what percentage of keys must move?",
+      "data": { "answer": 80, "tolerance": 1.15, "unit": "%" },
+      "explanation": "A key stays only if hash % 4 == hash % 5, which holds for 4 of every 20 hash values, so 20% stay and 80% move. Consistent hashing moves only about 1/5 of keys when adding a 5th node, which is why it's used for caches and partitioned stores."
+    },
+    {
+      "id": "storage-fit",
+      "skill": "storage",
+      "kind": "mcq",
+      "prompt": "Which workload fits a wide-column store (e.g. Cassandra) better than a relational database?",
+      "data": {
+        "options": [
+          "A bank ledger with multi-row transactions",
+          "Ad-hoc analytics joining 10 tables",
+          "Billions of sensor readings, written constantly, read by device ID and time range",
+          "A small app with many foreign-key constraints"
+        ],
+        "answer": 2
+      },
+      "explanation": "Wide-column stores excel at huge write volumes and queries known in advance that hit one partition (device_id) and a sorted range (time). They give up joins and multi-row transactions, which the other three workloads need."
+    },
+
+    {
+      "id": "caching-cache-aside",
+      "skill": "caching",
+      "kind": "mcq",
+      "prompt": "In the cache-aside pattern, what happens on a cache miss?",
+      "data": {
+        "options": [
+          "The cache fetches from the database by itself",
+          "The application reads from the database, then writes the result into the cache",
+          "The request fails and the client retries",
+          "The database pushes the value into the cache"
+        ],
+        "answer": 1
+      },
+      "explanation": "In cache-aside (lazy loading) the application owns the logic: check cache → on miss read DB → populate cache. Read-through is the variant where the cache library fetches from the DB itself."
+    },
+    {
+      "id": "caching-stampede",
+      "skill": "caching",
+      "kind": "mcq",
+      "prompt": "A hot key expires and the database falls over. Which fix addresses the actual cause?",
+      "data": {
+        "diagram": "10,000 req/s ─▶ [ app ] ─▶ [ cache ]  \"home_feed\" TTL expired\n                  │\n                  └──────▶ [ database ]  CPU 100%",
+        "options": [
+          "Set the TTL to never expire",
+          "Single-flight: one request recomputes the value while the others wait or get the stale copy",
+          "Add more app servers",
+          "Switch the cache from LRU to LFU eviction"
+        ],
+        "answer": 1
+      },
+      "explanation": "This is a cache stampede: every request misses at the same moment and all of them hit the DB. Coalescing (one recompute, everyone else waits or serves stale), early probabilistic refresh, or jittered TTLs fix it. More app servers would make the stampede worse."
+    },
+    {
+      "id": "caching-avg-latency",
+      "skill": "caching",
+      "kind": "numeric",
+      "prompt": "Cache hit ratio is 90%. A cache lookup takes 1 ms; a DB read takes 50 ms. A miss costs the cache lookup plus the DB read. What's the average read latency?",
+      "data": { "answer": 6, "tolerance": 1.1, "unit": "ms" },
+      "explanation": "0.9 × 1 + 0.1 × (1 + 50) = 0.9 + 5.1 = 6 ms. Note how the 10% of misses dominate: going from 90% to 99% hits cuts the average to about 1.5 ms."
+    },
+    {
+      "id": "caching-cdn",
+      "skill": "caching",
+      "kind": "mcq",
+      "prompt": "What does a CDN mainly buy you for static assets like images and JS bundles?",
+      "data": {
+        "options": [
+          "Stronger consistency between users",
+          "Lower latency for distant users and less load on your origin servers",
+          "Cheaper database writes",
+          "Automatic sharding"
+        ],
+        "answer": 1
+      },
+      "explanation": "A CDN caches content at edge locations near users, so requests travel a short distance and most never reach your origin. The trade-off is invalidation: version your asset URLs (app.3f9c.js) so you never need to purge."
+    },
+
+    {
+      "id": "async-queue-why",
+      "skill": "async",
+      "kind": "mcq",
+      "prompt": "Why put a message queue between the 'upload video' API and the transcoding service?",
+      "data": {
+        "options": [
+          "Queues make transcoding faster",
+          "The API can respond immediately, and the queue absorbs bursts so transcoders work at their own pace",
+          "Queues guarantee each video is processed exactly once",
+          "It removes the need for storage"
+        ],
+        "answer": 1
+      },
+      "explanation": "The queue decouples request latency from slow work and acts as a buffer: an upload spike becomes a longer queue, not timeouts. You can scale consumers on queue depth. It does not make work faster, and most queues deliver at-least-once, not exactly-once."
+    },
+    {
+      "id": "async-idempotency",
+      "skill": "async",
+      "kind": "mcq",
+      "prompt": "Your queue delivers messages at least once. The consumer charges a credit card. What must the consumer do?",
+      "data": {
+        "options": [
+          "Nothing; at-least-once means each message arrives once",
+          "Process idempotently, e.g. record a unique payment ID and skip messages already processed",
+          "Acknowledge each message before processing it",
+          "Use a bigger queue"
+        ],
+        "answer": 1
+      },
+      "explanation": "At-least-once means duplicates happen (e.g. the consumer crashes after charging but before acking). An idempotency key with a uniqueness check turns the duplicate into a no-op. Acking before processing just trades duplicates for lost messages."
+    },
+    {
+      "id": "async-pubsub",
+      "skill": "async",
+      "kind": "mcq",
+      "prompt": "The email service AND the analytics service must both receive every 'order_placed' event. What do you use?",
+      "data": {
+        "options": [
+          "A single work queue that both services consume from",
+          "Publish/subscribe (a topic), with each service as its own subscriber",
+          "Have the order service call both over HTTP synchronously",
+          "Write to the DB and let both services poll it every second"
+        ],
+        "answer": 1
+      },
+      "explanation": "In a work queue, consumers compete: each message goes to only one of them. With pub/sub, each subscriber (or Kafka consumer group) gets its own copy of every event, and new subscribers can be added without touching the producer."
+    },
+    {
+      "id": "async-outbox",
+      "skill": "async",
+      "kind": "order",
+      "prompt": "Order the steps of the transactional outbox pattern.",
+      "data": {
+        "items": [
+          "Write the business row and an outbox row in the same DB transaction",
+          "A relay process reads unpublished outbox rows",
+          "The relay publishes each event to the message broker",
+          "The relay marks the outbox row as published"
+        ]
+      },
+      "explanation": "Writing to the DB and publishing to a broker can't be done atomically, so you write the event into the DB in the same transaction and publish it afterwards. If the relay crashes between publishing and marking, the event is published again, so consumers must be idempotent."
+    },
+
+    {
+      "id": "consistency-cap",
+      "skill": "consistency",
+      "kind": "mcq",
+      "prompt": "During a network partition, a replicated database keeps accepting writes on both sides. What is it choosing?",
+      "data": {
+        "options": [
+          "Consistency over availability",
+          "Availability over consistency",
+          "Partition tolerance over both",
+          "Nothing; CAP only applies with no partition"
+        ],
+        "answer": 1
+      },
+      "explanation": "CAP: during a partition you must pick. Accepting writes on both sides keeps the system available but lets replicas diverge, so you then need conflict resolution (last-write-wins, CRDTs, etc.). A CP system would reject writes on the minority side."
+    },
+    {
+      "id": "consistency-quorum-why",
+      "skill": "consistency",
+      "kind": "mcq",
+      "prompt": "N = 3 replicas, writes wait for W = 2 acks, reads query R = 2 replicas. Why does a read see the latest acknowledged write?",
+      "data": {
+        "options": [
+          "Because W is more than half of N",
+          "Because R + W > N, so every read set overlaps every write set in at least one replica",
+          "Because reads are always sent to the leader",
+          "It doesn't; quorums only give eventual consistency"
+        ],
+        "answer": 1
+      },
+      "explanation": "With R + W > N, any 2 replicas you read share at least one replica with any 2 that acknowledged the write, so the newest version is in the response. Caveats: sloppy quorums and concurrent writes can still break this in practice."
+    },
+    {
+      "id": "consistency-quorum-r",
+      "skill": "consistency",
+      "kind": "numeric",
+      "prompt": "N = 5 replicas and writes use W = 3. What is the minimum R that still guarantees reads overlap the latest write?",
+      "data": { "answer": 3, "tolerance": 1.0, "unit": "replicas" },
+      "explanation": "You need R + W > N, so R > 5 − 3 = 2, which means R = 3. With W = 5 you could read from R = 1, but then a single unavailable replica blocks every write."
+    },
+    {
+      "id": "consistency-which-strong",
+      "skill": "consistency",
+      "kind": "mcq",
+      "prompt": "Which feature most needs strong consistency?",
+      "data": {
+        "options": [
+          "The like counter on a post",
+          "Video view counts",
+          "Preventing two people from booking the same concert seat",
+          "Ordering of posts in a news feed"
+        ],
+        "answer": 2
+      },
+      "explanation": "Double-booking a seat is a correctness bug users can't tolerate, so it needs a single source of truth (a transaction or conditional write). Counts and feed order can be slightly stale or approximate, so they can use cheaper eventual consistency."
+    }
+  ]
+}

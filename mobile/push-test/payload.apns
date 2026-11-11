@@ -1,0 +1,11 @@
+{
+  "Simulator Target Bundle": "com.farbutnear.sysdrill",
+  "aps": {
+    "alert": {
+      "title": "🔥 Your 3-day streak is on the line",
+      "body": "2 more cards keeps it alive."
+    },
+    "sound": "default"
+  },
+  "body": { "type": "reminder" }
+}

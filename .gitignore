@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+*.db
+*.db-shm
+*.db-wal
+.env
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
