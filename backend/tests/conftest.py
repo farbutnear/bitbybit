@@ -3,7 +3,7 @@ import tempfile
 from datetime import datetime, timezone
 
 # Point the module-level engine at a throwaway file before the app is imported.
-os.environ.setdefault("SYSDRILL_DATABASE_URL", f"sqlite:///{tempfile.mkdtemp()}/import.db")
+os.environ.setdefault("BITBYBIT_DATABASE_URL", f"sqlite:///{tempfile.mkdtemp()}/import.db")
 
 import pytest
 from fastapi.testclient import TestClient

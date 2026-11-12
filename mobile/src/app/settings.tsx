@@ -95,7 +95,7 @@ export default function Settings() {
             onPress={() =>
               run('perm', async () => {
                 if (await requestPermission()) await scheduleLocalReminders(user);
-                else notify('Notifications are off', 'Turn them on for Sysdrill in your phone settings.');
+                else notify('Notifications are off', 'Turn them on for bitbybit in your phone settings.');
               })
             }
           />

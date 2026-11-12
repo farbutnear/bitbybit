@@ -39,7 +39,7 @@ export default function Onboarding() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={{ gap: space(2), marginBottom: space(4) }}>
-            <Text style={styles.logo}>⛁ Sysdrill</Text>
+            <Text style={styles.logo}>⛁ bitbybit</Text>
             <Text style={styles.title}>System design, five minutes a day.</Text>
             <Text style={styles.subtitle}>
               Short drills, spaced out so you remember them. Keep a streak, get a nudge when it's at risk.

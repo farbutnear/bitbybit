@@ -311,7 +311,7 @@ def send_test_push(db: Session, user: User, sender: Sender) -> dict:
     if not tokens:
         return {"sent": 0, "failed": 0, "detail": "no push tokens registered for this user"}
     results = sender(
-        [PushMessage(to=t, title="Sysdrill test push", body="Server push is working 🎉", data={"type": "test"})
+        [PushMessage(to=t, title="bitbybit test push", body="Server push is working 🎉", data={"type": "test"})
          for t in tokens]
     )
     pruned = _prune(db, results)

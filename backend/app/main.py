@@ -27,7 +27,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="Sysdrill API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="bitbybit API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 DB = Annotated[Session, Depends(get_db)]
@@ -188,7 +188,7 @@ def delete_push_token(user_id: str, token: str, db: DB, now: Now) -> dict:
     return {"ok": True}
 
 
-# ---------- debug (disable with SYSDRILL_ENABLE_DEBUG_ROUTES=false) ----------
+# ---------- debug (disable with BITBYBIT_ENABLE_DEBUG_ROUTES=false) ----------
 
 if settings.enable_debug_routes:
 

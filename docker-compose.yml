@@ -6,13 +6,13 @@ services:
   db:
     image: postgres:17
     environment:
-      POSTGRES_USER: sysdrill
-      POSTGRES_PASSWORD: sysdrill
-      POSTGRES_DB: sysdrill
+      POSTGRES_USER: bitbybit
+      POSTGRES_PASSWORD: bitbybit
+      POSTGRES_DB: bitbybit
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sysdrill"]
+      test: ["CMD-SHELL", "pg_isready -U bitbybit"]
       interval: 2s
       timeout: 3s
       retries: 20
@@ -20,7 +20,7 @@ services:
   api:
     build: ./backend
     environment: &backend-env
-      SYSDRILL_DATABASE_URL: postgresql+psycopg://sysdrill:sysdrill@db:5432/sysdrill
+      BITBYBIT_DATABASE_URL: postgresql+psycopg://bitbybit:bitbybit@db:5432/bitbybit
     ports:
       - "8000:8000"
     depends_on:

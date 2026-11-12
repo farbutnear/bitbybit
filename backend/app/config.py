@@ -2,11 +2,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """All settings can be overridden with SYSDRILL_* environment variables or a .env file."""
+    """All settings can be overridden with BITBYBIT_* environment variables or a .env file."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="SYSDRILL_", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="BITBYBIT_", extra="ignore")
 
-    database_url: str = "sqlite:///./sysdrill.db"
+    database_url: str = "sqlite:///./bitbybit.db"
 
     # Lesson composition
     session_size: int = 10

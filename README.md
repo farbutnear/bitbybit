@@ -1,6 +1,6 @@
-# Sysdrill
+# bitbybit
 
-**Learn system design five minutes a day.** Duolingo-style daily practice for system design: short drills, spaced repetition so you actually remember them, a daily streak, and a nudge when the streak is at risk.
+**System design, one bit at a time.** Duolingo-style daily practice for system design: five-minute drills, spaced repetition so you actually remember them, a daily streak, and a nudge when the streak is at risk.
 
 <p align="center">
   <img src="docs/screenshots/onboarding.png" width="180" alt="Onboarding" />
@@ -89,13 +89,13 @@ cd mobile && npm run typecheck
 cd mobile
 npx expo install expo-dev-client
 npx expo run:ios                     # builds and launches in the Simulator
-xcrun simctl push booted com.farbutnear.sysdrill push-test/payload.apns
+xcrun simctl push booted com.farbutnear.bitbybit push-test/payload.apns
 ```
 
 **Test real server push end to end on Android (free):**
 
 1. `npm i -g eas-cli && eas login && eas init` (adds your EAS `projectId` to app.json).
-2. Create a Firebase project, add an Android app with package `com.farbutnear.sysdrill`, and upload its FCM V1 service account key with `eas credentials` ([Expo guide](https://docs.expo.dev/push-notifications/fcm-credentials/)).
+2. Create a Firebase project, add an Android app with package `com.farbutnear.bitbybit`, and upload its FCM V1 service account key with `eas credentials` ([Expo guide](https://docs.expo.dev/push-notifications/fcm-credentials/)).
 3. `npx expo install expo-dev-client && eas build --profile development --platform android`, then install the APK.
 4. In the app: Settings → *Enable server push* → *Send test server push*.
 5. With `python -m app.worker` running, reminders now come from the server. To trigger the worker without waiting: `curl -X POST localhost:8000/debug/run-reminders`.
@@ -155,7 +155,7 @@ Edit `backend/app/content/cards.json` and restart the API; content is upserted o
 ## Prototype shortcuts to fix before shipping
 
 - **No auth:** the user id in local storage is the only credential. Add sign-in (e.g. Sign in with Apple/Google) and authorize every `/users/{id}` route.
-- **Debug routes:** `/debug/*` is on by default. Set `SYSDRILL_ENABLE_DEBUG_ROUTES=false` in production.
+- **Debug routes:** `/debug/*` is on by default. Set `BITBYBIT_ENABLE_DEBUG_ROUTES=false` in production.
 - **Schema:** `create_all` on startup instead of Alembic migrations.
 - **Push receipts:** the worker reads Expo push *tickets* but doesn't poll *receipts*, where some delivery errors appear.
 - **Content:** 26 cards across 6 skills is enough to feel the loop, not a course.

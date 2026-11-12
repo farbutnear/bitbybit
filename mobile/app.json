@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Sysdrill",
-    "slug": "sysdrill",
-    "scheme": "sysdrill",
+    "name": "bitbybit",
+    "slug": "bitbybit",
+    "scheme": "bitbybit",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -15,10 +15,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.farbutnear.sysdrill"
+      "bundleIdentifier": "com.farbutnear.bitbybit"
     },
     "android": {
-      "package": "com.farbutnear.sysdrill",
+      "package": "com.farbutnear.bitbybit",
       "adaptiveIcon": {
         "backgroundColor": "#0E1320",
         "foregroundImage": "./assets/android-icon-foreground.png",

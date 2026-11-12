@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api, ApiError, type UserSummary } from './api';
 import { scheduleLocalReminders } from './notifications';
 
-const KEY = 'sysdrill.userId';
+const KEY = 'bitbybit.userId';
 
 type Ctx = {
   ready: boolean; // finished reading the saved user id

@@ -5,4 +5,4 @@ pydantic-settings>=2.6
 fsrs==6.3.2
 httpx==0.28.1
 tzdata>=2024.1
-psycopg[binary]>=3.2  # only used when SYSDRILL_DATABASE_URL points at Postgres
+psycopg[binary]>=3.2  # only used when BITBYBIT_DATABASE_URL points at Postgres

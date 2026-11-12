@@ -1,5 +1,5 @@
 {
-  "Simulator Target Bundle": "com.farbutnear.sysdrill",
+  "Simulator Target Bundle": "com.farbutnear.bitbybit",
   "aps": {
     "alert": {
       "title": "🔥 Your 3-day streak is on the line",

@@ -12,7 +12,7 @@ from .db import Base, SessionLocal, engine, utcnow
 from .push import send_expo_push
 from .service import run_reminder_tick
 
-log = logging.getLogger("sysdrill.worker")
+log = logging.getLogger("bitbybit.worker")
 
 
 def main() -> None:
