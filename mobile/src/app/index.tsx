@@ -1,10 +1,13 @@
-import { Redirect, Stack, router, useFocusEffect } from 'expo-router';
+import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Card, Label, ProgressBar } from '../components/ui';
+import { Icon, SKILL_ICON } from '../components/Icon';
+import { Mascot } from '../components/Mascot';
+import { Button, Card, ProgressBar, SectionTitle } from '../components/ui';
 import { api, type SkillProgress } from '../lib/api';
-import { colors, space } from '../lib/theme';
+import { colors, fonts, radius, space, type } from '../lib/theme';
 import { useUser } from '../lib/UserContext';
 
 export default function Home() {
@@ -18,51 +21,42 @@ export default function Home() {
     api.skills(userId).then(setSkills).catch(() => {});
   }, [userId, refresh]);
 
-  // Reload whenever the screen comes back into view (e.g. after finishing a lesson).
   useFocusEffect(
     useCallback(() => {
       load();
     }, [load]),
   );
 
-  if (!ready) return <Centered><ActivityIndicator color={colors.accent} /></Centered>;
+  if (!ready) return <Centered><ActivityIndicator color={colors.pink} /></Centered>;
   if (!userId) return <Redirect href="/onboarding" />;
   if (!user) {
     return (
       <Centered>
         {error ? (
           <>
-            <Text style={styles.errorTitle}>Can't load your progress</Text>
-            <Text style={styles.errorText}>{error}</Text>
-            <Button title="Try again" onPress={load} style={{ marginTop: space(4), alignSelf: 'stretch' }} />
+            <Mascot mood="sad" size={120} />
+            <Text style={[type.heading, { marginTop: space(3) }]}>Can’t reach the server</Text>
+            <Text style={[type.small, { textAlign: 'center', marginTop: space(2) }]}>{error}</Text>
+            <Button title="Try again" onPress={load} style={{ marginTop: space(5), alignSelf: 'stretch' }} />
           </>
         ) : (
-          <ActivityIndicator color={colors.accent} />
+          <ActivityIndicator color={colors.pink} />
         )}
       </Centered>
     );
   }
 
   const { streak } = user;
-  const goalProgress = Math.min(user.today_count / user.daily_goal, 1);
+  const done = Math.min(user.today_count, user.daily_goal);
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          headerRight: () => (
-            <Pressable onPress={() => router.push('/settings')} hitSlop={12} accessibilityLabel="Settings">
-              <Text style={{ color: colors.text, fontSize: 22 }}>⚙︎</Text>
-            </Pressable>
-          ),
-        }}
-      />
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            tintColor={colors.accent}
+            tintColor={colors.pink}
             onRefresh={async () => {
               setRefreshing(true);
               await load();
@@ -71,62 +65,85 @@ export default function Home() {
           />
         }
       >
-        <Text style={styles.greeting}>Hi {user.name} 👋</Text>
+        <View style={styles.topBar}>
+          <Text style={styles.wordmark}>bitbybit</Text>
+          <Pressable onPress={() => router.push('/settings')} hitSlop={12} accessibilityLabel="Settings" style={styles.iconBtn}>
+            <Icon name="settings" size={22} color={colors.muted} />
+          </Pressable>
+        </View>
 
-        <Card style={styles.streakCard}>
-          <View style={styles.streakRow}>
-            <Text style={[styles.flame, streak.current === 0 && { opacity: 0.35 }]}>🔥</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.streakNumber}>{streak.current}</Text>
-              <Text style={styles.streakLabel}>day streak</Text>
+        <View style={styles.hero}>
+          <Mascot mood={user.goal_met_today ? 'happy' : 'idle'} size={124} />
+          <View style={{ flex: 1, gap: space(1) }}>
+            <View style={styles.streakRow}>
+              <Icon name="flame" size={40} color={streak.current === 0 ? colors.faint : undefined} />
+              <Text style={[type.hero, { color: streak.current ? colors.gold : colors.faint }]}>{streak.current}</Text>
             </View>
-            <View style={{ alignItems: 'flex-end', gap: 2 }}>
-              <Text style={styles.meta}>🧊 {streak.freezes} freeze{streak.freezes === 1 ? '' : 's'}</Text>
-              <Text style={styles.meta}>🏆 best {streak.longest}</Text>
+            <Text style={styles.streakLabel}>day streak</Text>
+            <View style={styles.statsRow}>
+              <View style={styles.stat}>
+                <Icon name="freeze" size={16} color={colors.ice} strokeWidth={2.4} />
+                <Text style={styles.statText}>{streak.freezes}</Text>
+              </View>
+              <View style={styles.stat}>
+                <Icon name="trophy" size={16} color={colors.muted} strokeWidth={2.4} />
+                <Text style={styles.statText}>best {streak.longest}</Text>
+              </View>
             </View>
           </View>
+        </View>
 
-          <View style={{ gap: space(2), marginTop: space(4) }}>
-            <View style={styles.goalRow}>
-              <Text style={styles.goalText}>
-                Today: {Math.min(user.today_count, user.daily_goal)}/{user.daily_goal} cards
-              </Text>
-              {user.goal_met_today ? <Text style={[styles.goalText, { color: colors.good }]}>Goal met ✓</Text> : null}
-            </View>
-            <ProgressBar value={goalProgress} color={user.goal_met_today ? colors.good : colors.flame} height={10} />
+        <Card style={{ gap: space(3) }}>
+          <View style={styles.between}>
+            <Text style={type.heading}>Today</Text>
+            <Text style={[styles.goalCount, user.goal_met_today && { color: colors.jadeText }]}>
+              {done} / {user.daily_goal} cards
+            </Text>
           </View>
-
-          {streak.at_risk ? (
-            <Text style={styles.atRisk}>Practice today to keep your streak alive.</Text>
-          ) : null}
+          <ProgressBar value={done / user.daily_goal} color={user.goal_met_today ? colors.jade : colors.gold} height={16} />
+          {user.goal_met_today ? (
+            <Text style={[type.small, { color: colors.jadeText }]}>Goal done. Extra practice still counts toward memory.</Text>
+          ) : streak.at_risk ? (
+            <Text style={[type.small, { color: colors.gold }]}>
+              {user.daily_goal - done} more to keep your {streak.current}-day streak.
+            </Text>
+          ) : (
+            <Text style={type.small}>Finish {user.daily_goal} cards to start a streak.</Text>
+          )}
         </Card>
 
-        <Button
-          title={user.due_count > 0 ? `Start lesson · ${user.due_count} due` : 'Start lesson'}
-          onPress={() => router.push('/lesson')}
-        />
+        <View style={{ gap: space(2) }}>
+          <Button title="Start lesson" onPress={() => router.push('/lesson')} />
+          {user.due_count > 0 ? (
+            <Text style={[type.small, { textAlign: 'center' }]}>
+              {user.due_count} card{user.due_count === 1 ? '' : 's'} due for review
+            </Text>
+          ) : null}
+        </View>
 
-        <View style={{ marginTop: space(2) }}>
-          <Label>Skills</Label>
+        <View style={{ marginTop: space(3) }}>
+          <SectionTitle>Your skills</SectionTitle>
           <View style={{ gap: space(3) }}>
             {(skills ?? []).map((s) => (
-              <Card key={s.id} style={{ gap: space(2) }}>
-                <View style={styles.goalRow}>
-                  <Text style={styles.skillTitle}>{s.title}</Text>
-                  <Text style={styles.meta}>
-                    {s.seen}/{s.total} seen
-                  </Text>
+              <View key={s.id} style={styles.skill}>
+                <View style={[styles.skillIcon, s.seen > 0 && { backgroundColor: colors.pink }]}>
+                  <Icon name={SKILL_ICON[s.id] ?? 'compute'} size={24} color={s.seen > 0 ? colors.pinkInk : colors.muted} />
                 </View>
-                <ProgressBar value={s.mastery} />
-                <Text style={styles.meta}>
-                  {s.strong > 0 ? `${s.strong} card${s.strong === 1 ? '' : 's'} in long-term memory` : s.seen ? 'Learning' : 'Not started'}
-                </Text>
-              </Card>
+                <View style={{ flex: 1, gap: space(2) }}>
+                  <View style={styles.between}>
+                    <Text style={styles.skillTitle}>{s.title}</Text>
+                    <Text style={styles.skillMeta}>
+                      {s.seen}/{s.total}
+                    </Text>
+                  </View>
+                  <ProgressBar value={s.mastery} height={8} />
+                </View>
+              </View>
             ))}
           </View>
         </View>
       </ScrollView>
-    </>
+    </SafeAreaView>
   );
 }
 
@@ -135,19 +152,43 @@ function Centered({ children }: { children: React.ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: space(5), gap: space(4), paddingBottom: space(12) },
+  container: { padding: space(5), gap: space(5), paddingBottom: space(12) },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space(6), backgroundColor: colors.bg },
-  greeting: { color: colors.text, fontSize: 26, fontWeight: '800' },
-  streakCard: { paddingVertical: space(5) },
-  streakRow: { flexDirection: 'row', alignItems: 'center', gap: space(3) },
-  flame: { fontSize: 52 },
-  streakNumber: { color: colors.flame, fontSize: 44, fontWeight: '900', lineHeight: 48 },
-  streakLabel: { color: colors.muted, fontSize: 15, fontWeight: '600' },
-  meta: { color: colors.muted, fontSize: 13, fontWeight: '600' },
-  goalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  goalText: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  atRisk: { color: colors.warn, fontSize: 14, fontWeight: '600', marginTop: space(3) },
-  skillTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
-  errorTitle: { color: colors.text, fontSize: 20, fontWeight: '800', marginBottom: space(2) },
-  errorText: { color: colors.muted, fontSize: 15, textAlign: 'center', lineHeight: 21 },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  wordmark: { fontFamily: fonts.displayBold, fontSize: 26, color: colors.pink, letterSpacing: -0.5 },
+  iconBtn: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: space(3) },
+  streakRow: { flexDirection: 'row', alignItems: 'center', gap: space(1) },
+  streakLabel: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.muted, marginTop: -space(1) },
+  statsRow: { flexDirection: 'row', gap: space(3), marginTop: space(2) },
+  stat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.card,
+    borderRadius: 999,
+    paddingHorizontal: space(3),
+    paddingVertical: 5,
+  },
+  statText: { fontFamily: fonts.bodyBold, fontSize: 13, color: colors.text },
+  between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  goalCount: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.gold },
+  skill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space(3),
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    padding: space(3),
+  },
+  skillIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: colors.cardRaised,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  skillTitle: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.text },
+  skillMeta: { fontFamily: fonts.bodyBold, fontSize: 13, color: colors.faint },
 });

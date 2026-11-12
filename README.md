@@ -6,8 +6,8 @@
   <img src="docs/screenshots/onboarding.png" width="180" alt="Onboarding" />
   <img src="docs/screenshots/home.png" width="180" alt="Home screen with streak and skill progress" />
   <img src="docs/screenshots/lesson.png" width="180" alt="Multiple-choice question" />
-  <img src="docs/screenshots/ordering.png" width="180" alt="Ordering question" />
-  <img src="docs/screenshots/feedback.png" width="180" alt="Answer feedback with daily goal hit" />
+  <img src="docs/screenshots/wrong.png" width="180" alt="Wrong-answer panel" />
+  <img src="docs/screenshots/feedback.png" width="180" alt="Right-answer panel with daily goal hit" />
 </p>
 
 ## Features
@@ -122,6 +122,10 @@ Many university networks block devices from talking to each other. Then:
 
 - **App code:** `npx expo start --tunnel`
 - **Backend:** your phone can't reach `http://<laptop-ip>:8000`. Deploy the backend (Render, Railway and Fly.io all run the included Dockerfile) and start the app with `EXPO_PUBLIC_API_URL=https://your-backend.example npx expo start --tunnel`. Use HTTPS for anything outside your LAN.
+
+## Mascot art
+
+The llama lives in `mobile/assets/mascot/` as three images: `idle.png`, `happy.png` (right answer) and `sad.png` (wrong answer). Use square PNGs with a transparent background, around 512×512. Replace the files and the app picks them up everywhere: onboarding, home, the result panel and the lesson-complete screen. The files in the repo now are labelled placeholders.
 
 ## Design notes
 

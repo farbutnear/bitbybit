@@ -7,7 +7,8 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import type { Answer, ReviewResult, SessionCard } from '../lib/api';
-import { colors, mono, radius, space } from '../lib/theme';
+import { colors, fonts, mono, radius, space, type } from '../lib/theme';
+import { Icon } from './Icon';
 import { Button } from './ui';
 
 type Props = {
@@ -16,6 +17,55 @@ type Props = {
   submitting: boolean;
   onSubmit: (answer: Answer) => void;
 };
+
+type TileState = 'idle' | 'chosen' | 'right' | 'wrong';
+
+const TILE: Record<TileState, { bg: string; border: string; edge: string; key: string; keyInk: string }> = {
+  idle: { bg: colors.card, border: colors.border, edge: '#2F0D24', key: colors.cardRaised, keyInk: colors.muted },
+  chosen: { bg: '#4A1638', border: colors.pink, edge: colors.pinkDark, key: colors.pink, keyInk: colors.pinkInk },
+  right: { bg: colors.jadeBg, border: colors.jade, edge: colors.jadeDark, key: colors.jade, keyInk: '#F0FFF7' },
+  wrong: { bg: colors.rubyBg, border: colors.ruby, edge: colors.rubyDark, key: colors.ruby, keyInk: '#FFF0F2' },
+};
+
+function Tile({
+  label,
+  badge,
+  state,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  badge: string;
+  state: TileState;
+  disabled?: boolean;
+  onPress?: () => void;
+}) {
+  const t = TILE[state];
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: state === 'chosen', disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.tile,
+        { backgroundColor: t.bg, borderColor: t.border, borderBottomColor: t.edge },
+        pressed && { borderBottomWidth: 2, marginTop: 3 },
+      ]}
+    >
+      <View style={[styles.badge, { backgroundColor: t.key }]}>
+        {state === 'right' ? (
+          <Icon name="check" size={16} color={t.keyInk} strokeWidth={3} />
+        ) : state === 'wrong' ? (
+          <Icon name="close" size={16} color={t.keyInk} strokeWidth={3} />
+        ) : (
+          <Text style={[styles.badgeText, { color: t.keyInk }]}>{badge}</Text>
+        )}
+      </View>
+      <Text style={styles.tileText}>{label}</Text>
+    </Pressable>
+  );
+}
 
 export function QuestionCard(props: Props) {
   const { card } = props;
@@ -40,31 +90,17 @@ function McqInput({ card, result, submitting, onSubmit }: Props) {
   return (
     <View style={{ gap: space(3) }}>
       {card.options!.map((opt, i) => {
-        const isChosen = choice === i;
-        const isAnswer = locked && result!.correct_answer === i;
-        const isWrongChoice = locked && isChosen && !result!.correct;
+        let state: TileState = choice === i ? 'chosen' : 'idle';
+        if (locked) {
+          if (result!.correct_answer === i) state = 'right';
+          else if (choice === i) state = 'wrong';
+          else state = 'idle';
+        }
         return (
-          <Pressable
-            key={i}
-            accessibilityRole="button"
-            accessibilityState={{ selected: isChosen }}
-            disabled={locked}
-            onPress={() => setChoice(i)}
-            style={[
-              styles.option,
-              isChosen && !locked && styles.optionChosen,
-              isAnswer && styles.optionGood,
-              isWrongChoice && styles.optionBad,
-            ]}
-          >
-            <Text style={styles.optionKey}>{String.fromCharCode(65 + i)}</Text>
-            <Text style={styles.optionText}>{opt}</Text>
-          </Pressable>
+          <Tile key={i} label={opt} badge={String.fromCharCode(65 + i)} state={state} disabled={locked} onPress={() => setChoice(i)} />
         );
       })}
-      {!locked && (
-        <Button title="Check" disabled={choice === null} loading={submitting} onPress={() => onSubmit(choice!)} />
-      )}
+      {!locked && <Button title="Check" disabled={choice === null} loading={submitting} onPress={() => onSubmit(choice!)} />}
     </View>
   );
 }
@@ -75,33 +111,28 @@ function OrderInput({ card, result, submitting, onSubmit }: Props) {
   const pool = card.items!.filter((it) => !placed.includes(it));
   return (
     <View style={{ gap: space(3) }}>
-      <Text style={styles.subtle}>Tap the steps in order. Tap a placed step to remove it.</Text>
+      <Text style={type.small}>Tap the steps in order. Tap a placed step to take it back.</Text>
       <View style={styles.slots}>
-        {placed.length === 0 ? <Text style={styles.subtle}>Your order appears here</Text> : null}
-        {placed.map((it, i) => (
-          <Pressable
-            key={it}
-            disabled={locked}
-            onPress={() => setPlaced(placed.filter((p) => p !== it))}
-            style={[
-              styles.option,
-              styles.optionChosen,
-              locked && (result!.correct ? styles.optionGood : (result!.correct_answer as string[])[i] === it ? styles.optionGood : styles.optionBad),
-            ]}
-          >
-            <Text style={styles.optionKey}>{i + 1}</Text>
-            <Text style={styles.optionText}>{it}</Text>
-          </Pressable>
-        ))}
+        {placed.length === 0 ? <Text style={[type.small, { textAlign: 'center' }]}>Your order builds up here</Text> : null}
+        {placed.map((it, i) => {
+          let state: TileState = 'chosen';
+          if (locked) state = (result!.correct_answer as string[])[i] === it ? 'right' : 'wrong';
+          return (
+            <Tile
+              key={it}
+              label={it}
+              badge={String(i + 1)}
+              state={state}
+              disabled={locked}
+              onPress={() => setPlaced(placed.filter((p) => p !== it))}
+            />
+          );
+        })}
       </View>
       {pool.map((it) => (
-        <Pressable key={it} disabled={locked} onPress={() => setPlaced([...placed, it])} style={styles.option}>
-          <Text style={styles.optionText}>{it}</Text>
-        </Pressable>
+        <Tile key={it} label={it} badge="+" state="idle" disabled={locked} onPress={() => setPlaced([...placed, it])} />
       ))}
-      {!locked && (
-        <Button title="Check" disabled={pool.length > 0} loading={submitting} onPress={() => onSubmit(placed)} />
-      )}
+      {!locked && <Button title="Check" disabled={pool.length > 0} loading={submitting} onPress={() => onSubmit(placed)} />}
     </View>
   );
 }
@@ -123,20 +154,17 @@ function NumericInput({ card, result, submitting, onSubmit }: Props) {
   const [showHint, setShowHint] = useState(false);
   const locked = result !== null;
   const value = parseNumber(text);
+  const state: TileState = !locked ? (text ? 'chosen' : 'idle') : result!.correct ? 'right' : 'wrong';
+  const t = TILE[state];
   return (
     <View style={{ gap: space(3) }}>
-      <View
-        style={[
-          styles.numericRow,
-          locked && (result!.correct ? styles.optionGood : styles.optionBad),
-        ]}
-      >
+      <View style={[styles.numericRow, { backgroundColor: t.bg, borderColor: t.border, borderBottomColor: t.edge }]}>
         <TextInput
           value={text}
           onChangeText={setText}
           editable={!locked}
-          placeholder="Your estimate"
-          placeholderTextColor={colors.muted}
+          placeholder="2.3k"
+          placeholderTextColor={colors.faint}
           keyboardType="decimal-pad"
           returnKeyType="done"
           onSubmitEditing={() => value !== null && onSubmit(value)}
@@ -144,19 +172,21 @@ function NumericInput({ card, result, submitting, onSubmit }: Props) {
         />
         {card.unit ? <Text style={styles.unit}>{card.unit}</Text> : null}
       </View>
-      <Text style={styles.subtle}>Estimates within the expected range count. You can type 2.3k or 1.5M.</Text>
+      <Text style={type.small}>Estimates in the right ballpark count. Shorthand like 2.3k or 1.5M works.</Text>
       {card.hint && !locked ? (
         showHint ? (
-          <Text style={styles.hint}>💡 {card.hint}</Text>
+          <View style={styles.hint}>
+            <Icon name="hint" size={20} color={colors.gold} />
+            <Text style={[type.small, { color: colors.gold, flex: 1 }]}>{card.hint}</Text>
+          </View>
         ) : (
-          <Pressable onPress={() => setShowHint(true)}>
-            <Text style={[styles.subtle, { color: colors.accent }]}>Show hint</Text>
+          <Pressable onPress={() => setShowHint(true)} style={styles.hintLink} hitSlop={8}>
+            <Icon name="hint" size={18} color={colors.pink} />
+            <Text style={[type.small, { color: colors.pink, fontFamily: fonts.bodyBold }]}>Show hint</Text>
           </Pressable>
         )
       ) : null}
-      {!locked && (
-        <Button title="Check" disabled={value === null} loading={submitting} onPress={() => onSubmit(value!)} />
-      )}
+      {!locked && <Button title="Check" disabled={value === null} loading={submitting} onPress={() => onSubmit(value!)} />}
     </View>
   );
 }
@@ -169,52 +199,48 @@ export function formatCorrectAnswer(card: SessionCard, result: ReviewResult): st
 }
 
 const styles = StyleSheet.create({
-  prompt: { color: colors.text, fontSize: 21, lineHeight: 29, fontWeight: '700' },
+  prompt: { fontFamily: fonts.display, fontSize: 23, lineHeight: 30, color: colors.text },
   diagram: {
-    backgroundColor: '#0A0F1A',
+    backgroundColor: '#1F0815',
     borderRadius: radius.md,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
     padding: space(3),
   },
-  diagramText: { color: colors.accent, fontFamily: mono, fontSize: 12, lineHeight: 18 },
-  option: {
+  diagramText: { color: colors.pink, fontFamily: mono, fontSize: 12, lineHeight: 18 },
+  tile: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space(3),
-    backgroundColor: colors.card,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderBottomWidth: 5,
     borderRadius: radius.md,
     paddingVertical: space(3),
-    paddingHorizontal: space(4),
+    paddingHorizontal: space(3),
   },
-  optionChosen: { borderColor: colors.accent, backgroundColor: colors.accentDim },
-  optionGood: { borderColor: colors.good, backgroundColor: colors.goodBg },
-  optionBad: { borderColor: colors.bad, backgroundColor: colors.badBg },
-  optionKey: { color: colors.muted, fontWeight: '800', fontSize: 14, width: 18 },
-  optionText: { color: colors.text, fontSize: 16, lineHeight: 22, flex: 1 },
+  badge: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  badgeText: { fontFamily: fonts.displayBold, fontSize: 15 },
+  tileText: { fontFamily: fonts.body, fontSize: 16, lineHeight: 22, color: colors.text, flex: 1 },
   slots: {
     gap: space(2),
-    minHeight: 64,
-    borderWidth: 1,
+    minHeight: 70,
+    borderWidth: 2,
     borderStyle: 'dashed',
     borderColor: colors.border,
     borderRadius: radius.md,
     padding: space(2),
     justifyContent: 'center',
   },
-  subtle: { color: colors.muted, fontSize: 14, lineHeight: 20 },
-  hint: { color: colors.warn, fontSize: 15, lineHeight: 21 },
   numericRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.card,
     borderWidth: 2,
-    borderColor: colors.border,
+    borderBottomWidth: 5,
     borderRadius: radius.md,
     paddingHorizontal: space(4),
   },
-  numericInput: { flex: 1, color: colors.text, fontSize: 24, fontWeight: '700', paddingVertical: space(3) },
-  unit: { color: colors.muted, fontSize: 17, fontWeight: '600' },
+  numericInput: { flex: 1, minWidth: 0, width: 0, color: colors.text, fontSize: 28, fontFamily: fonts.displayBold, paddingVertical: space(3) },
+  unit: { fontFamily: fonts.bodyBold, fontSize: 17, color: colors.muted, flexShrink: 0, marginLeft: space(2) },
+  hint: { flexDirection: 'row', gap: space(2), alignItems: 'flex-start' },
+  hintLink: { flexDirection: 'row', gap: space(1), alignItems: 'center', alignSelf: 'flex-start' },
 });

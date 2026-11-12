@@ -1,11 +1,13 @@
+import { Fredoka_600SemiBold, Fredoka_700Bold } from '@expo-google-fonts/fredoka';
+import { Nunito_400Regular, Nunito_600SemiBold, Nunito_800ExtraBold, useFonts } from '@expo-google-fonts/nunito';
 import * as Notifications from 'expo-notifications';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { AppState, Platform } from 'react-native';
+import { AppState, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { colors } from '../lib/theme';
+import { colors, fonts } from '../lib/theme';
 import { UserProvider, useUser } from '../lib/UserContext';
 
 function NotificationTapHandler() {
@@ -33,6 +35,15 @@ function RefreshOnForeground() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    Fredoka_600SemiBold,
+    Fredoka_700Bold,
+    Nunito_400Regular,
+    Nunito_600SemiBold,
+    Nunito_800ExtraBold,
+  });
+  if (!fontsLoaded && !fontError) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+
   return (
     <SafeAreaProvider>
       <UserProvider>
@@ -43,11 +54,12 @@ export default function RootLayout() {
           screenOptions={{
             headerStyle: { backgroundColor: colors.bg },
             headerTintColor: colors.text,
+            headerTitleStyle: { fontFamily: fonts.display, fontSize: 20 },
             headerShadowVisible: false,
             contentStyle: { backgroundColor: colors.bg },
           }}
         >
-          <Stack.Screen name="index" options={{ title: 'bitbybit' }} />
+          <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="lesson" options={{ headerShown: false, gestureEnabled: false, presentation: 'fullScreenModal' }} />
           <Stack.Screen name="settings" options={{ title: 'Settings' }} />

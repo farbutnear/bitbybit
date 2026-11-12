@@ -55,9 +55,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, [userId, signOut]);
 
-  useEffect(() => {
-    if (userId) refresh();
-  }, [userId, refresh]);
+  // No effect fetches the user here: screens call refresh() when they come into focus
+  // (and on app foreground), which covers first load and every return to the app.
 
   const setUser = useCallback(async (u: UserSummary) => {
     await AsyncStorage.setItem(KEY, u.id);

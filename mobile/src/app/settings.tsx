@@ -2,7 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Button, Card, Chip, Label } from '../components/ui';
+import { Button, Card, Chip, SectionTitle } from '../components/ui';
 import { api, API_URL } from '../lib/api';
 import {
   getPermissionStatus,
@@ -14,7 +14,7 @@ import {
   serverPushAvailability,
 } from '../lib/notifications';
 import { deviceTimezone, formatHour, GOALS, REMINDER_HOURS } from '../lib/prefs';
-import { colors, space } from '../lib/theme';
+import { colors, fonts, space } from '../lib/theme';
 import { useUser } from '../lib/UserContext';
 
 function notify(title: string, message: string) {
@@ -60,7 +60,7 @@ export default function Settings() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View>
-        <Label>Daily goal</Label>
+        <SectionTitle>Daily goal</SectionTitle>
         <View style={styles.chips}>
           {GOALS.map((g) => (
             <Chip key={g} label={`${g} cards`} selected={user.daily_goal === g} onPress={() => run('goal', () => update({ daily_goal: g }))} />
@@ -69,7 +69,7 @@ export default function Settings() {
       </View>
 
       <View>
-        <Label>Reminder time</Label>
+        <SectionTitle>Reminder time</SectionTitle>
         <View style={styles.chips}>
           {REMINDER_HOURS.map((h) => (
             <Chip
@@ -83,7 +83,7 @@ export default function Settings() {
       </View>
 
       <Card style={{ gap: space(3) }}>
-        <Label>Notifications</Label>
+        <SectionTitle>Notifications</SectionTitle>
         <Row k="Permission" v={permission} />
         <Row k="Reminders via" v={mode} />
         <Row k="Server push" v={push.available ? 'Available in this build' : push.reason!} />
@@ -147,7 +147,7 @@ export default function Settings() {
       </Card>
 
       <Card style={{ gap: space(3) }}>
-        <Label>Account</Label>
+        <SectionTitle>Account</SectionTitle>
         <Row k="Name" v={user.name} />
         <Row k="Timezone" v={user.timezone} />
         {tz !== user.timezone ? (
@@ -161,7 +161,7 @@ export default function Settings() {
         <Row k="Server" v={API_URL} />
         <Button
           title="Reset this device"
-          variant="bad"
+          variant="ruby"
           onPress={async () => {
             await signOut();
             router.replace('/onboarding');
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   container: { padding: space(5), gap: space(5), paddingBottom: space(12) },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space(2) },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: space(4) },
-  key: { color: colors.muted, fontSize: 15 },
-  value: { color: colors.text, fontSize: 15, fontWeight: '600', flexShrink: 1, textAlign: 'right' },
-  note: { color: colors.muted, fontSize: 13, lineHeight: 19 },
+  key: { color: colors.muted, fontSize: 15, fontFamily: fonts.body },
+  value: { color: colors.text, fontSize: 15, fontFamily: fonts.bodyBold, flexShrink: 1, textAlign: 'right' },
+  note: { color: colors.muted, fontSize: 13, lineHeight: 19, fontFamily: fonts.body },
 });

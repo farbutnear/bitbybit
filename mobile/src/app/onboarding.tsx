@@ -3,11 +3,12 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Chip, Label } from '../components/ui';
+import { Mascot } from '../components/Mascot';
+import { Button, Chip } from '../components/ui';
 import { api } from '../lib/api';
 import { requestPermission, scheduleLocalReminders } from '../lib/notifications';
 import { deviceTimezone, formatHour, GOALS, REMINDER_HOURS } from '../lib/prefs';
-import { colors, radius, space } from '../lib/theme';
+import { colors, fonts, radius, space, type } from '../lib/theme';
 import { useUser } from '../lib/UserContext';
 
 export default function Onboarding() {
@@ -38,49 +39,50 @@ export default function Onboarding() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <View style={{ gap: space(2), marginBottom: space(4) }}>
-            <Text style={styles.logo}>⛁ bitbybit</Text>
-            <Text style={styles.title}>System design, five minutes a day.</Text>
-            <Text style={styles.subtitle}>
-              Short drills, spaced out so you remember them. Keep a streak, get a nudge when it's at risk.
+          <View style={styles.hero}>
+            <Mascot mood="idle" size={150} />
+            <Text style={styles.wordmark}>bitbybit</Text>
+            <Text style={[type.title, { textAlign: 'center' }]}>System design, one bit at a time.</Text>
+            <Text style={[type.small, styles.subtitle]}>
+              Five-minute drills that come back right before you’d forget them. Keep a streak going.
             </Text>
           </View>
 
-          <View>
-            <Label>What should we call you?</Label>
+          <View style={styles.field}>
+            <Text style={styles.label}>What should we call you?</Text>
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder="Your name"
-              placeholderTextColor={colors.muted}
+              placeholder="Asher"
+              placeholderTextColor={colors.faint}
               style={styles.input}
               autoCapitalize="words"
               returnKeyType="done"
             />
           </View>
 
-          <View>
-            <Label>Daily goal</Label>
+          <View style={styles.field}>
+            <Text style={styles.label}>Cards per day</Text>
             <View style={styles.chips}>
               {GOALS.map((g) => (
-                <Chip key={g} label={`${g} cards`} selected={goal === g} onPress={() => setGoal(g)} />
+                <Chip key={g} label={`${g}`} selected={goal === g} onPress={() => setGoal(g)} />
               ))}
             </View>
           </View>
 
-          <View>
-            <Label>Remind me at</Label>
+          <View style={styles.field}>
+            <Text style={styles.label}>Remind me at</Text>
             <View style={styles.chips}>
               {REMINDER_HOURS.map((h) => (
                 <Chip key={h} label={formatHour(h)} selected={hour === h} onPress={() => setHour(h)} />
               ))}
             </View>
-            <Text style={styles.hint}>Timezone: {timezone}</Text>
+            <Text style={[type.tiny, { marginTop: space(2) }]}>Your time zone: {timezone}</Text>
           </View>
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? <Text style={[type.small, { color: colors.rubyText }]}>{error}</Text> : null}
 
-          <Button title="Start drilling" disabled={!name.trim()} loading={busy} onPress={start} style={{ marginTop: space(2) }} />
+          <Button title="Start learning" disabled={!name.trim()} loading={busy} onPress={start} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -88,21 +90,23 @@ export default function Onboarding() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: space(6), gap: space(6), paddingTop: space(10) },
-  logo: { color: colors.accent, fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
-  title: { color: colors.text, fontSize: 32, fontWeight: '900', lineHeight: 38 },
-  subtitle: { color: colors.muted, fontSize: 16, lineHeight: 23 },
+  container: { padding: space(6), gap: space(6), paddingBottom: space(10) },
+  hero: { alignItems: 'center', gap: space(2) },
+  wordmark: { fontFamily: fonts.displayBold, fontSize: 22, color: colors.pink, marginTop: space(1) },
+  subtitle: { textAlign: 'center', fontSize: 16, lineHeight: 23, maxWidth: 320 },
+  field: { gap: space(3) },
+  label: { fontFamily: fonts.display, fontSize: 18, color: colors.text },
   input: {
     backgroundColor: colors.card,
     borderColor: colors.border,
-    borderWidth: 1,
+    borderWidth: 2,
+    borderBottomWidth: 5,
     borderRadius: radius.md,
     color: colors.text,
     fontSize: 18,
+    fontFamily: fonts.bodyBold,
     paddingHorizontal: space(4),
     paddingVertical: space(3),
   },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space(2) },
-  hint: { color: colors.muted, fontSize: 13, marginTop: space(2) },
-  error: { color: colors.bad, fontSize: 15, lineHeight: 21 },
 });
