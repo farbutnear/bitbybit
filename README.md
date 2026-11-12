@@ -37,13 +37,27 @@
 
 ## Quick start
 
-You need Node 22.13+ and Python 3.11+. Your phone and laptop must be on the same Wi-Fi (see [Campus Wi-Fi](#campus-wi-fi-or-no-shared-network) if not).
+**One command (recommended):**
+
+```bash
+./dev.sh
+```
+
+That's it. It sets up the Python env and npm packages on first run, logs you in to Expo if needed, starts the backend, opens a Cloudflare tunnel to it, waits until it's reachable, and starts Expo with the right backend URL. Install **Expo Go** on your phone (log in with the same Expo account) and scan the QR code. Ctrl+C stops everything; logs are in `.dev/`.
+
+It works on any network, including WSL and campus Wi-Fi, because both the app and the backend go through tunnels. One-time requirements: Node 22.13+, Python 3.11+ and [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) (the script prints the install command if it's missing).
+
+If your phone and computer share a network (and you're not on WSL), `./dev.sh --lan` skips the tunnels and starts faster.
+
+### Manual setup
+
+Your phone and laptop must be on the same Wi-Fi (see [Campus Wi-Fi](#campus-wi-fi-or-no-shared-network) if not).
 
 **1. Backend**
 
 ```bash
 cd backend
-python -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```

@@ -13,3 +13,6 @@ venv/
 .DS_Store
 .idea/
 .vscode/
+
+# dev.sh state and logs
+.dev/
