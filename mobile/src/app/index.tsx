@@ -1,6 +1,6 @@
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon, SKILL_ICON } from '../components/Icon';
@@ -66,7 +66,10 @@ export default function Home() {
         }
       >
         <View style={styles.topBar}>
-          <Text style={styles.wordmark}>bitbybit</Text>
+          <View style={styles.brand} accessibilityRole="header" accessibilityLabel="bitbybit">
+            <Image source={require('../../assets/mark-b.png')} style={{ width: 17, height: 29 }} resizeMode="contain" />
+            <Image source={require('../../assets/wordmark-light.png')} style={{ width: 92, height: 25 }} resizeMode="contain" />
+          </View>
           <Pressable onPress={() => router.push('/settings')} hitSlop={12} accessibilityLabel="Settings" style={styles.iconBtn}>
             <Icon name="settings" size={22} color={colors.muted} />
           </Pressable>
@@ -155,7 +158,7 @@ const styles = StyleSheet.create({
   container: { padding: space(5), gap: space(5), paddingBottom: space(12) },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space(6), backgroundColor: colors.bg },
   topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  wordmark: { fontFamily: fonts.displayBold, fontSize: 26, color: colors.pink, letterSpacing: -0.5 },
+  brand: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   iconBtn: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card },
   hero: { flexDirection: 'row', alignItems: 'center', gap: space(3) },
   streakRow: { flexDirection: 'row', alignItems: 'center', gap: space(1) },

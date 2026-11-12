@@ -7,12 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#0E1320",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0E1320"
-    },
+    "backgroundColor": "#2A0B1D",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.farbutnear.bitbybit"
@@ -20,9 +15,8 @@
     "android": {
       "package": "com.farbutnear.bitbybit",
       "adaptiveIcon": {
-        "backgroundColor": "#0E1320",
+        "backgroundColor": "#2A0B1D",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
@@ -36,10 +30,20 @@
       [
         "expo-notifications",
         {
-          "color": "#4FD1C5"
+          "color": "#FF6FB8",
+          "icon": "./assets/notification-icon.png"
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#2A0B1D"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false

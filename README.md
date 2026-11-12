@@ -1,4 +1,9 @@
-# bitbybit
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark-mode.png" />
+    <img src="docs/logo.png" width="200" alt="bitbybit" />
+  </picture>
+</p>
 
 **System design, one bit at a time.** Duolingo-style daily practice for system design: five-minute drills, spaced repetition so you actually remember them, a daily streak, and a nudge when the streak is at risk.
 
@@ -125,7 +130,9 @@ Many university networks block devices from talking to each other. Then:
 
 ## Mascot art
 
-The llama lives in `mobile/assets/mascot/` as three images: `idle.png`, `happy.png` (right answer) and `sad.png` (wrong answer). Use square PNGs with a transparent background, around 512×512. Replace the files and the app picks them up everywhere: onboarding, home, the result panel and the lesson-complete screen. The files in the repo now are labelled placeholders.
+The llama lives in `mobile/assets/mascot/` as three images: `idle.png`, `happy.png` (right answer) and `sad.png` (wrong answer), each a 512×512 transparent PNG with the llama standing on the same baseline. Replace the files and the app picks them up everywhere: onboarding, home, the result panel and the lesson-complete screen.
+
+Brand assets in `mobile/assets/`: `icon.png` (app icon, single "b" mark), `android-icon-foreground.png` / `android-icon-monochrome.png` (Android adaptive and themed icons), `splash-icon.png` (full logo, used by the `expo-splash-screen` plugin), `logo-light.png`, `wordmark-light.png` and `mark-b.png` (in-app branding) and `notification-icon.png`. Icon and splash changes show up in development and store builds, not in Expo Go.
 
 ## Design notes
 

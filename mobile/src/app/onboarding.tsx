@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Mascot } from '../components/Mascot';
@@ -40,8 +40,13 @@ export default function Onboarding() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.hero}>
+            <Image
+              source={require('../../assets/logo-light.png')}
+              style={{ width: 132, height: 116 }}
+              resizeMode="contain"
+              accessibilityLabel="bitbybit"
+            />
             <Mascot mood="idle" size={150} />
-            <Text style={styles.wordmark}>bitbybit</Text>
             <Text style={[type.title, { textAlign: 'center' }]}>System design, one bit at a time.</Text>
             <Text style={[type.small, styles.subtitle]}>
               Five-minute drills that come back right before you’d forget them. Keep a streak going.
@@ -92,7 +97,6 @@ export default function Onboarding() {
 const styles = StyleSheet.create({
   container: { padding: space(6), gap: space(6), paddingBottom: space(10) },
   hero: { alignItems: 'center', gap: space(2) },
-  wordmark: { fontFamily: fonts.displayBold, fontSize: 22, color: colors.pink, marginTop: space(1) },
   subtitle: { textAlign: 'center', fontSize: 16, lineHeight: 23, maxWidth: 320 },
   field: { gap: space(3) },
   label: { fontFamily: fonts.display, fontSize: 18, color: colors.text },
