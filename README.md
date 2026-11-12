@@ -1,6 +1,22 @@
 # Sysdrill
 
-Duolingo-style daily practice for **system design**: short drills, spaced repetition so you actually remember them, a daily streak, and reminders when the streak is at risk.
+**Learn system design five minutes a day.** Duolingo-style daily practice for system design: short drills, spaced repetition so you actually remember them, a daily streak, and a nudge when the streak is at risk.
+
+<p align="center">
+  <img src="docs/screenshots/onboarding.png" width="180" alt="Onboarding" />
+  <img src="docs/screenshots/home.png" width="180" alt="Home screen with streak and skill progress" />
+  <img src="docs/screenshots/lesson.png" width="180" alt="Multiple-choice question" />
+  <img src="docs/screenshots/ordering.png" width="180" alt="Ordering question" />
+  <img src="docs/screenshots/feedback.png" width="180" alt="Answer feedback with daily goal hit" />
+</p>
+
+## Features
+
+- **Bite-sized lessons** with three drill types: multiple choice (some with architecture diagrams), put-the-steps-in-order, and back-of-envelope estimates graded within a tolerance
+- **FSRS spaced repetition**, so each card comes back right before you'd forget it
+- **Daily streak** in your local timezone, with streak freezes
+- **Streak reminders** as local notifications (work in Expo Go) or server push via a backend worker
+- **Skill map** showing progress across estimation, compute, storage, caching, async processing and consistency
 
 - **Mobile app:** React Native + Expo SDK 58 (TypeScript, Expo Router), one codebase for iOS and Android
 - **Backend:** FastAPI + SQLAlchemy (SQLite for dev, Postgres in Docker), FSRS scheduling, a reminder worker that sends push through Expo's push service
