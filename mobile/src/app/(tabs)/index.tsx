@@ -10,7 +10,7 @@ import { Chamfer } from '../../components/shapes';
 import { StatusBoard } from '../../components/StatusBoard';
 import { SystemMap } from '../../components/SystemMap';
 import { Button, Card } from '../../components/ui';
-import { api, type PathLesson, type Track, type TrackPath } from '../../lib/api';
+import { api, type PathLesson, type SimOverview, type Track, type TrackPath } from '../../lib/api';
 import { useLoop, useReduceMotion } from '../../lib/motion';
 import { play } from '../../lib/sound';
 import { colors, fonts, space, type } from '../../lib/theme';
@@ -22,10 +22,15 @@ export default function Learn() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [path, setPath] = useState<TrackPath | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [sims, setSims] = useState<SimOverview | null>(null);
 
   const load = useCallback(async () => {
     if (!userId) return;
     const u = await refresh();
+    api
+      .simOverview(userId)
+      .then(setSims)
+      .catch(() => {});
     if (!u?.active_track_id) return;
     try {
       const [t, p] = await Promise.all([api.tracks(userId), api.path(userId, u.active_track_id)]);
@@ -117,6 +122,7 @@ export default function Learn() {
         }
       >
         <StatusBoard user={user} />
+        {sims ? <Incident incident={sims.incident} /> : null}
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.switcher} contentContainerStyle={styles.switcherRow}>
           {chosen.map((t) => {
@@ -160,6 +166,49 @@ export default function Learn() {
       </ScrollView>
       {upNext ? <Continue title={upNext.title} onPress={() => open(upNext)} /> : null}
     </SafeAreaView>
+  );
+}
+
+/** Today's incident: a failing system to fix in the simulator. The light blinks until it is resolved. */
+function Incident({ incident }: { incident: SimOverview['incident'] }) {
+  const reduce = useReduceMotion();
+  const t = useLoop(1400, 0, !incident.solved && !reduce);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${incident.title}. ${incident.solved ? 'Resolved today' : `Respond for ${incident.bits} bits`}`}
+      onPress={() => {
+        play('tap');
+        router.push({ pathname: '/sim', params: { id: 'incident' } });
+      }}
+    >
+      <Chamfer cut={12} fill={colors.card} stroke={incident.solved ? colors.jadeDark : colors.gold} style={styles.incident}>
+        <Animated.View
+          style={[
+            styles.incidentLed,
+            { backgroundColor: incident.solved ? colors.jade : colors.gold, opacity: t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.25, 1] }) },
+          ]}
+        />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.incidentTitle} numberOfLines={1}>
+            {incident.title}
+          </Text>
+          <Text style={type.tiny}>{incident.solved ? 'Resolved today. Another one tomorrow.' : `Respond in the simulator for +${incident.bits} bits`}</Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="All sims"
+          hitSlop={8}
+          onPress={() => {
+            play('tap');
+            router.push('/lab');
+          }}
+          style={styles.lab}
+        >
+          <Text style={styles.labText}>All sims</Text>
+        </Pressable>
+      </Chamfer>
+    </Pressable>
   );
 }
 
@@ -224,6 +273,11 @@ const styles = StyleSheet.create({
   tabOn: { backgroundColor: colors.card },
   tabText: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.muted },
   finished: { alignItems: 'center', gap: space(2), marginTop: space(2) },
+  incident: { flexDirection: 'row', alignItems: 'center', gap: space(3), paddingVertical: space(3), paddingHorizontal: space(4) },
+  incidentLed: { width: 10, height: 10, borderRadius: 5 },
+  incidentTitle: { fontFamily: fonts.display, fontSize: 16, color: colors.text },
+  lab: { backgroundColor: colors.cardRaised, borderRadius: 999, paddingHorizontal: space(3), paddingVertical: 6 },
+  labText: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.text },
   cta: { position: 'absolute', left: space(5), right: space(5), bottom: space(3) },
   ctaFace: { height: 56, paddingBottom: 5, paddingHorizontal: space(4), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   ctaText: { flexShrink: 1, fontFamily: fonts.display, fontSize: 17, color: colors.pinkInk },

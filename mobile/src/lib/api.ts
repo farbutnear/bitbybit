@@ -179,6 +179,37 @@ export type ReviewResult = {
   streak: Streak;
 };
 
+// ----- simulator -----
+export type SimCheck = { id: 'p99' | 'errors' | 'lag' | 'cost'; label: string; value: number | null; target: number; unit: string; ok: boolean };
+export type SimKnob = {
+  id: string;
+  label: string;
+  type: 'int' | 'bool' | 'choice';
+  default: number | boolean;
+  min?: number;
+  max?: number;
+  unit_cost?: number;
+  cost?: number;
+  /** Another knob that has to be on for this one to matter. */
+  needs?: string;
+  options?: { value: number; label: string; cost: number }[];
+};
+export type SimConfig = Record<string, number | boolean>;
+export type SimLoad = 'ok' | 'hot' | 'down';
+export type SimResult = {
+  config: SimConfig;
+  passed: boolean;
+  checks: SimCheck[];
+  cost: number;
+  diagram: Diagram;
+  states: Record<string, SimLoad>;
+  verdict: string;
+};
+export type SimRun = SimResult & { first_solve: boolean; bits_earned: number; bits: number; attempts: number; best_cost: number | null };
+export type SimLevel = { id: string; title: string; story: string; teaches: string; knobs: SimKnob[]; start: SimResult };
+export type SimEntry = { id: string; title: string; teaches: string; solved: boolean; best_cost: number | null; attempts: number };
+export type SimOverview = { levels: SimEntry[]; incident: SimEntry & { story: string; bits: number }; bits_per_level: number };
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -241,6 +272,10 @@ export const api = {
       method: 'POST',
       body: json(body),
     }),
+  simOverview: (id: string) => request<SimOverview>(`/users/${id}/sim`),
+  simLevel: (id: string, levelId: string) => request<SimLevel>(`/users/${id}/sim/${levelId}`),
+  simRun: (id: string, levelId: string, config: SimConfig) =>
+    request<SimRun>(`/users/${id}/sim/${levelId}/run`, { method: 'POST', body: json({ config }) }),
   registerPushToken: (id: string, token: string, platform: string) =>
     request<{ ok: boolean }>(`/users/${id}/push-tokens`, { method: 'POST', body: json({ token, platform }) }),
   testServerPush: (id: string) =>

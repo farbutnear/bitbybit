@@ -29,7 +29,7 @@ export function componentName(kind: string): string {
   return COMPONENTS[kind]?.name ?? kind;
 }
 
-export type NodeState = 'idle' | 'selected' | 'right' | 'wrong' | 'cleared';
+export type NodeState = 'idle' | 'selected' | 'right' | 'wrong' | 'cleared' | 'hot';
 
 const NODE = 56;
 const CELL_H = 116;
@@ -42,6 +42,7 @@ const STATE_STYLE: Record<NodeState, { border: string; bg: string; ink: string }
   right: { border: colors.jade, bg: colors.jadeBg, ink: colors.jadeText },
   wrong: { border: colors.ruby, bg: colors.rubyBg, ink: colors.rubyText },
   cleared: { border: colors.border, bg: colors.bg, ink: colors.faint }, // ruled out by the Tracer lens
+  hot: { border: colors.gold, bg: colors.cardRaised, ink: colors.gold }, // simulator: busy enough to be slow
 };
 
 type Pt = { x: number; y: number };

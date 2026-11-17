@@ -67,6 +67,8 @@ export default function RootLayout() {
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="lesson" options={{ headerShown: false, gestureEnabled: false, presentation: 'fullScreenModal' }} />
           <Stack.Screen name="pack" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+          <Stack.Screen name="sim" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+          <Stack.Screen name="lab" options={{ title: 'Sim lab' }} />
           <Stack.Screen name="tracks" options={{ title: 'Your tracks' }} />
         </Stack>
       </UserProvider>
