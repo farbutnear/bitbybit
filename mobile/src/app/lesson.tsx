@@ -4,13 +4,26 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View, type ScrollViewInstance } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BitToken } from '../components/Bits';
+import { GearImage } from '../components/GearCard';
 import { Icon } from '../components/Icon';
 import { Mascot } from '../components/Mascot';
 import { formatCorrectAnswer, KIND_LABEL, QuestionCard } from '../components/exercises';
 import { ResultPanel } from '../components/ResultPanel';
 import { TeachScreen } from '../components/TeachScreen';
 import { Button, ProgressBar } from '../components/ui';
-import { api, type Answer, type LessonCompletion, type ReviewResult, type SessionCard, type TeachStep } from '../lib/api';
+import {
+  api,
+  type Answer,
+  type CardKind,
+  type LessonCompletion,
+  type Perk,
+  type PerkCharges,
+  type PlaySession,
+  type ReviewResult,
+  type SessionCard,
+  type TeachStep,
+} from '../lib/api';
 import { play } from '../lib/sound';
 import { colors, fonts, radius, space, type } from '../lib/theme';
 import { useUser } from '../lib/UserContext';
@@ -24,7 +37,14 @@ type Item =
   | { type: 'teach'; step: TeachStep; key: string }
   | { type: 'card'; card: SessionCard; isRetry: boolean; key: string };
 
-type Loaded = { title: string; items: Item[]; learned: number };
+type Loaded = { title: string; items: Item[]; learned: number; session: PlaySession | null };
+
+/** Gear whose perk is spent during play, and the kind of card each one works on. */
+const SESSION_GEAR: { gear: string; name: string; perk: Perk; kind?: CardKind; use: string }[] = [
+  { gear: 'debug-visor', name: 'Debug visor', perk: 'strike_option', kind: 'mcq', use: 'Tap to strike' },
+  { gear: 'tracer-lens', name: 'Tracer lens', perk: 'clear_node', kind: 'spot', use: 'Tap to rule out' },
+  { gear: 'rollback-cap', name: 'Rollback cap', perk: 'second_try', use: 'Catches one miss' },
+];
 
 function haptic(kind: 'success' | 'error') {
   if (Platform.OS === 'web') return;
@@ -56,6 +76,11 @@ function Player({ lessonId, practice }: { lessonId: string | null; practice: boo
   const [completion, setCompletion] = useState<LessonCompletion | null>(null);
   const [finished, setFinished] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [perks, setPerks] = useState<PerkCharges | null>(null);
+  const [struck, setStruck] = useState<Record<string, number[]>>({});
+  const [cleared, setCleared] = useState<Record<string, string[]>>({});
+  const [notice, setNotice] = useState<string | null>(null);
+  const [bitsRun, setBitsRun] = useState(0);
   const startedAt = useRef(0);
   const scroll = useRef<ScrollViewInstance>(null);
 
@@ -65,6 +90,7 @@ function Player({ lessonId, practice }: { lessonId: string | null; practice: boo
       ? api.lesson(userId, lessonId).then((les): Loaded => ({
           title: les.title,
           learned: 0,
+          session: les.session,
           items: les.steps.map((s, i) =>
             s.type === 'teach'
               ? { type: 'teach', step: s, key: `teach:${i}` }
@@ -74,12 +100,14 @@ function Player({ lessonId, practice }: { lessonId: string | null; practice: boo
       : api.reviewQueue(userId, practice).then((q): Loaded => ({
           title: practice ? 'Practice' : 'Review',
           learned: q.learned_count,
+          session: q.session,
           items: q.cards.map((card) => ({ type: 'card', card, isRetry: false, key: card.id })),
         }));
     load
       .then((l) => {
         startedAt.current = Date.now();
         setLoaded(l);
+        setPerks(l.session?.perks ?? null);
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [userId, lessonId, practice]);
@@ -157,7 +185,7 @@ function Player({ lessonId, practice }: { lessonId: string | null; practice: boo
         )}
         <View style={styles.statRow}>
           <Stat value={`${stats.correct}/${stats.answered}`} label="right first try" color={colors.jadeText} />
-          <Stat value={`${last?.today_count ?? user?.today_count ?? 0}`} label="cards today" color={colors.gold} />
+          <Stat value={`+${bitsRun}`} label="bits earned" color={colors.gold} />
         </View>
         {next ? (
           <>
@@ -177,6 +205,8 @@ function Player({ lessonId, practice }: { lessonId: string | null; practice: boo
   }
 
   const item = queue[idx];
+  const worn = Object.values(user?.equipped ?? {});
+  const tray = SESSION_GEAR.filter((g) => worn.includes(g.gear));
 
   async function submit(answer: Answer) {
     if (!userId || item.type !== 'card') return;
@@ -187,7 +217,19 @@ function Player({ lessonId, practice }: { lessonId: string | null; practice: boo
         answer,
         is_retry: item.isRetry,
         duration_ms: Date.now() - startedAt.current,
+        session_id: loaded?.session?.id,
       });
+      if (res.rolled_back) {
+        // The Rollback cap caught it: nothing counted and nothing is revealed, so the card stays open.
+        haptic('error');
+        play('tap');
+        setPerks(res.perks);
+        setNotice('Rollback cap caught that one. It wasn’t right, so nothing counted: try again.');
+        return;
+      }
+      setNotice(null);
+      if (res.perks) setPerks(res.perks);
+      setBitsRun((b) => b + res.bits_earned);
       haptic(res.correct ? 'success' : 'error');
       play(res.correct ? 'right' : 'wrong');
       setResult(res);
@@ -204,8 +246,23 @@ function Player({ lessonId, practice }: { lessonId: string | null; practice: boo
     }
   }
 
+  async function spendPerk(perk: 'strike_option' | 'clear_node') {
+    if (!userId || item.type !== 'card' || !loaded?.session) return;
+    const cardId = item.card.id;
+    try {
+      const res = await api.usePerk(userId, { session_id: loaded.session.id, perk, card_id: cardId });
+      play('tap');
+      setPerks(res.perks);
+      if (res.removed_option !== undefined) setStruck((s) => ({ ...s, [cardId]: [...(s[cardId] ?? []), res.removed_option!] }));
+      if (res.cleared_node !== undefined) setCleared((c) => ({ ...c, [cardId]: [...(c[cardId] ?? []), res.cleared_node!] }));
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   async function next() {
     setResult(null);
+    setNotice(null);
     if (idx + 1 < queue.length) {
       setIdx(idx + 1);
       startedAt.current = Date.now();
@@ -215,7 +272,11 @@ function Player({ lessonId, practice }: { lessonId: string | null; practice: boo
     // Last step: record the lesson as finished (this unlocks the next one), then celebrate.
     setFinishing(true);
     try {
-      if (userId && lessonId) setCompletion(await api.completeLesson(userId, lessonId));
+      if (userId && lessonId) {
+        const done = await api.completeLesson(userId, lessonId);
+        setCompletion(done);
+        setBitsRun((b) => b + done.bits_earned);
+      }
       await refresh();
       play(metGoal ? 'goal' : 'done');
       setFinished(true);
@@ -236,9 +297,9 @@ function Player({ lessonId, practice }: { lessonId: string | null; practice: boo
         <View style={{ flex: 1 }}>
           <ProgressBar value={idx / queue.length} height={16} />
         </View>
-        <View style={styles.topStreak}>
-          <Icon name="flame" size={22} />
-          <Text style={styles.topStreakText}>{last?.streak.current ?? user?.streak.current ?? 0}</Text>
+        <View style={styles.topStreak} accessibilityLabel={`${bitsRun} bits earned this session`}>
+          <BitToken size={22} />
+          <Text style={styles.topStreakText}>+{bitsRun}</Text>
         </View>
       </View>
 
@@ -262,7 +323,55 @@ function Player({ lessonId, practice }: { lessonId: string | null; practice: boo
                 </View>
               ) : null}
             </View>
-            <QuestionCard key={item.key} card={item.card} result={result} submitting={submitting} onSubmit={submit} />
+            <QuestionCard
+              key={item.key}
+              card={item.card}
+              result={result}
+              submitting={submitting}
+              onSubmit={submit}
+              struck={struck[item.card.id]}
+              cleared={cleared[item.card.id]}
+            />
+            {notice && !result ? (
+              <View style={styles.notice} accessibilityLiveRegion="polite">
+                <Text style={styles.noticeText}>{notice}</Text>
+              </View>
+            ) : null}
+            {!result && perks && tray.length ? (
+              <View style={{ gap: space(2) }}>
+                <Text style={type.tiny}>Your gear this session</Text>
+                <View style={styles.tray}>
+                  {tray.map((g) => {
+                    const left = perks[g.perk];
+                    const usable = g.perk !== 'second_try' && g.kind === item.card.kind && left > 0;
+                    return (
+                      <Pressable
+                        key={g.gear}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${g.name}: ${g.use}. ${left} ${left === 1 ? 'charge' : 'charges'} left`}
+                        accessibilityState={{ disabled: !usable }}
+                        disabled={!usable}
+                        onPress={() => spendPerk(g.perk as 'strike_option' | 'clear_node')}
+                        style={[styles.perk, usable && { borderColor: colors.pinkDark }, left === 0 && { opacity: 0.55 }]}
+                      >
+                        <GearImage id={g.gear} size={40} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.perkName} numberOfLines={1}>
+                            {g.name}
+                          </Text>
+                          <View style={styles.perkLine}>
+                            <View style={[styles.led, { backgroundColor: left > 0 ? colors.pink : colors.border }]} />
+                            <Text style={type.tiny} numberOfLines={1}>
+                              {left === 0 ? 'used' : usable ? g.use : `${left} ready`}
+                            </Text>
+                          </View>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
           </>
         )}
       </ScrollView>
@@ -336,4 +445,21 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   statValue: { fontFamily: fonts.displayBold, fontSize: 26 },
+  notice: { backgroundColor: colors.chosen, borderRadius: radius.md, borderWidth: 2, borderColor: colors.pinkDark, padding: space(3) },
+  noticeText: { fontFamily: fonts.body, fontSize: 15, lineHeight: 21, color: colors.text },
+  tray: { flexDirection: 'row', gap: space(2) },
+  perk: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space(2),
+    backgroundColor: colors.panel,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+    padding: space(2),
+  },
+  perkName: { fontFamily: fonts.bodyBold, fontSize: 13.5, color: colors.text },
+  perkLine: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  led: { width: 7, height: 7, borderRadius: 4 },
 });

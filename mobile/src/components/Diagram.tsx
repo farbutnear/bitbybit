@@ -29,7 +29,7 @@ export function componentName(kind: string): string {
   return COMPONENTS[kind]?.name ?? kind;
 }
 
-export type NodeState = 'idle' | 'selected' | 'right' | 'wrong';
+export type NodeState = 'idle' | 'selected' | 'right' | 'wrong' | 'cleared';
 
 const NODE = 56;
 const CELL_H = 116;
@@ -41,6 +41,7 @@ const STATE_STYLE: Record<NodeState, { border: string; bg: string; ink: string }
   selected: { border: colors.pink, bg: colors.chosen, ink: colors.text },
   right: { border: colors.jade, bg: colors.jadeBg, ink: colors.jadeText },
   wrong: { border: colors.ruby, bg: colors.rubyBg, ink: colors.rubyText },
+  cleared: { border: colors.border, bg: colors.bg, ink: colors.faint }, // ruled out by the Tracer lens
 };
 
 type Pt = { x: number; y: number };
@@ -145,7 +146,7 @@ export function Diagram({ diagram, states, fills, activeSlot, onPressNode, slots
               const kind = filled ?? n.kind;
               const state: NodeState = states?.[n.id] ?? (isSlot && activeSlot === n.id ? 'selected' : 'idle');
               const st = STATE_STYLE[state];
-              const pressable = !!onPressNode && !disabled && (!slotsOnly || isSlot);
+              const pressable = !!onPressNode && !disabled && state !== 'cleared' && (!slotsOnly || isSlot);
               const label = isSlot ? (filled ? componentName(filled) : '') : n.label;
               const empty = isSlot && !filled;
               return (

@@ -43,7 +43,50 @@ export type UserSummary = {
   has_push: boolean;
   active_track_id: string | null;
   track_ids: string[];
+  bits: number;
+  bits_earned: number;
+  equipped: Record<Slot, string | null>;
+  history: UptimeDay[];
 };
+
+/** One local day on the uptime bar. frozen = missed, but a streak freeze covered it. */
+export type UptimeDay = { date: string; state: 'met' | 'frozen' | 'missed' | 'today'; count: number };
+
+export type Slot = 'head' | 'face' | 'neck';
+export type Rarity = 'common' | 'rare' | 'legendary';
+export type Perk = 'second_try' | 'strike_option' | 'clear_node';
+/** Charges left this session for the perks that are spent during play. */
+export type PerkCharges = Record<Perk, number>;
+export type PlaySession = { id: string; perks: PerkCharges };
+export type Gear = {
+  id: string;
+  name: string;
+  slot: Slot;
+  rarity: Rarity;
+  perk: string;
+  blurb: string;
+  owned: boolean;
+  copies: number;
+  equipped: boolean;
+};
+export type Loot = {
+  bits: number;
+  bits_earned: number;
+  pack: {
+    cost: number;
+    size: number;
+    odds: Record<Rarity, number>;
+    pity_every: number;
+    packs_until_guaranteed_legendary: number;
+    duplicate_refund: Record<Rarity, number>;
+    opened: number;
+  };
+  freeze: { cost: number; held: number; max: number };
+  slots: Slot[];
+  gear: Gear[];
+};
+export type PackCard = Omit<Gear, 'owned' | 'copies' | 'equipped'> & { new: boolean; refund: number };
+export type OpenedPack = { cards: PackCard[]; bits: number; loot: Loot };
 
 export type Track = {
   id: string;
@@ -76,6 +119,7 @@ export type Lesson = {
   unit_title: string;
   status: LessonStatus;
   steps: (TeachStep | CardStep)[];
+  session: PlaySession;
 };
 export type LessonCompletion = {
   first_time: boolean;
@@ -83,6 +127,8 @@ export type LessonCompletion = {
   track_complete: boolean;
   lessons_done: number;
   lessons_total: number;
+  bits_earned: number;
+  bits: number;
 };
 
 export type SessionCard = {
@@ -103,12 +149,26 @@ export type SessionCard = {
   right?: string[];
 };
 
-export type ReviewQueue = { cards: SessionCard[]; due_count: number; learned_count: number; next_due: string | null };
+export type ReviewQueue = {
+  cards: SessionCard[];
+  due_count: number;
+  learned_count: number;
+  next_due: string | null;
+  session: PlaySession | null;
+};
 
 /** mcq: option index. order: items. numeric/slider: number. spot: node id. build: slot -> component. match: [left, right] pairs. */
 export type Answer = number | string | string[] | Record<string, string> | [string, string][];
 
+/** The Rollback cap caught a wrong answer: nothing was recorded or revealed, so the card is answered again. */
+export type RolledBack = { rolled_back: true; correct: false; perks: PerkCharges };
+
 export type ReviewResult = {
+  rolled_back: false;
+  assisted: boolean;
+  bits_earned: number;
+  bits: number;
+  perks: PerkCharges | null;
   correct: boolean;
   correct_answer: Answer;
   explanation: string;
@@ -169,8 +229,18 @@ export const api = {
     request<LessonCompletion>(`/users/${id}/lessons/${lessonId}/complete`, { method: 'POST' }),
   reviewQueue: (id: string, practice = false) =>
     request<ReviewQueue>(`/users/${id}/review${practice ? '?practice=true' : ''}`),
-  review: (id: string, body: { card_id: string; answer: Answer; is_retry: boolean; duration_ms: number }) =>
-    request<ReviewResult>(`/users/${id}/reviews`, { method: 'POST', body: json(body) }),
+  review: (id: string, body: { card_id: string; answer: Answer; is_retry: boolean; duration_ms: number; session_id?: string }) =>
+    request<ReviewResult | RolledBack>(`/users/${id}/reviews`, { method: 'POST', body: json(body) }),
+  loot: (id: string) => request<Loot>(`/users/${id}/loot`),
+  openPack: (id: string) => request<OpenedPack>(`/users/${id}/packs/open`, { method: 'POST' }),
+  equip: (id: string, gearId: string, on: boolean) =>
+    request<Loot>(`/users/${id}/gear/${gearId}/${on ? 'equip' : 'unequip'}`, { method: 'POST' }),
+  buyFreeze: (id: string) => request<Loot>(`/users/${id}/shop/freeze`, { method: 'POST' }),
+  usePerk: (id: string, body: { session_id: string; perk: 'strike_option' | 'clear_node'; card_id: string }) =>
+    request<{ removed_option?: number; cleared_node?: string; perks: PerkCharges }>(`/users/${id}/perks/use`, {
+      method: 'POST',
+      body: json(body),
+    }),
   registerPushToken: (id: string, token: string, platform: string) =>
     request<{ ok: boolean }>(`/users/${id}/push-tokens`, { method: 'POST', body: json({ token, platform }) }),
   testServerPush: (id: string) =>

@@ -8,7 +8,9 @@
 **System design, one bit at a time.** Duolingo-style daily practice for system design: five-minute drills, spaced repetition so you actually remember them, a daily streak, and a nudge when the streak is at risk.
 
 <p align="center">
-  <img src="docs/screenshots/home.png" width="180" alt="Learn tab with the lesson path" />
+  <img src="docs/screenshots/home.png" width="180" alt="Learn tab: the track as a live system map, with the uptime bar" />
+  <img src="docs/screenshots/gear.png" width="180" alt="Gear tab: loadout, card packs and the collection" />
+  <img src="docs/screenshots/perks.png" width="180" alt="A lesson with gear perks: one option struck off" />
   <img src="docs/screenshots/teach.png" width="180" alt="A teaching screen with a live diagram" />
   <img src="docs/screenshots/build.png" width="180" alt="Build-it exercise" />
   <img src="docs/screenshots/spot.png" width="180" alt="Find-the-fault exercise" />
@@ -23,7 +25,8 @@
 - **Live diagrams:** architectures are drawn from data, with request dots flowing along the wires on teaching screens
 - **FSRS spaced repetition** in a separate review queue, so each card you've learned comes back right before you'd forget it
 - **Daily streak** in your local timezone, with streak freezes
-- **Bits, packs and gear** (backend done, app screens next): bits earned by learning open card packs of gear for the llama, and every piece is a perk that changes how a lesson plays
+- **A track is a system you bring online:** lessons are nodes joined by wires, with requests flowing through the ones you've finished, and the streak is shown as a 14-day uptime bar like a status page
+- **Bits, packs and gear:** bits earned by learning open card packs of gear for the llama, and every piece is a perk that changes how a lesson plays
 - **Streak reminders** as local notifications (work in Expo Go) or server push via a backend worker
 - **Sound:** effects for taps, answers and finished lessons, a meme clip on wrong answers (meme mode) and background music, each with its own switch on the You tab
 
@@ -90,7 +93,7 @@ Install **Expo Go** on your phone and scan the QR code. The app finds the backen
 **Tests**
 
 ```bash
-cd backend && pytest            # 68 tests: course rules, every grader, a full-course playthrough, streaks, DST, grading, bits, packs and perks, reminders, push, API flows
+cd backend && pytest            # 69 tests: course rules, every grader, a full-course playthrough, streaks, DST, grading, bits, packs and perks, reminders, push, API flows
 cd mobile && npm run typecheck
 ```
 
@@ -159,7 +162,7 @@ Sound follows the phone's silent switch and mixes with whatever else is playing.
 
 **Reminder worker.** Users with a push token have a `next_reminder_at` (UTC, indexed), computed from their local reminder time with `zoneinfo`, so it's DST-correct. Each tick claims due users with a conditional `UPDATE ... WHERE next_reminder_at = <old>`, so several workers can run without double-sending. The claim happens *before* the send, which makes reminders at-most-once: a missed nudge is better than a duplicate. Users who already met today's goal are skipped. Tokens Expo reports as `DeviceNotRegistered` are deleted.
 
-**Bits, packs and gear (backend only so far; the app screens come next).** Bits are earned by learning and can't be bought: 5 for a new or due card answered right first try, 25 for the daily goal, 20 for finishing a lesson the first time, 50 for each full week of streak. Replays and practising ahead pay almost nothing, so grinding one easy card is pointless. 100 bits open a pack of three gear cards. The odds (60% common, 35% rare, 5% legendary per card) are returned by `GET /users/{id}/loot` so the app can show them, a legendary is guaranteed at least every 10th pack, and duplicates pay bits back. Bits also buy streak freezes.
+**Bits, packs and gear.** Bits are earned by learning and can't be bought: 5 for a new or due card answered right first try, 25 for the daily goal, 20 for finishing a lesson the first time, 50 for each full week of streak. Replays and practising ahead pay almost nothing, so grinding one easy card is pointless. 100 bits open a pack of three gear cards. The odds (60% common, 35% rare, 5% legendary per card) are returned by `GET /users/{id}/loot` so the app can show them, a legendary is guaranteed at least every 10th pack, and duplicates pay bits back. Bits also buy streak freezes.
 
 Gear goes in three slots (head, face, neck) and each piece changes how a session plays. See `backend/app/loot.py` for the catalogue:
 
@@ -195,10 +198,10 @@ backend/
     content/cards.json   the cards lessons refer to
   tests/
 mobile/
-  src/app/           (tabs)/ Learn, Review and You; plus onboarding, lesson and tracks
-  src/components/    Diagram, path view, track picker, teach screen, result panel, UI kit
+  src/app/           (tabs)/ Learn, Review, Gear and You; plus onboarding, lesson, pack and tracks
+  src/components/    Diagram, system map, status board, gear cards, track picker, teach screen, result panel, UI kit
   src/components/exercises/   one component per card kind
-  src/lib/           api client, notifications, sound, user context, theme
+  src/lib/           api client, notifications, sound, motion, user context, theme
   assets/sounds/     effects, plus drop-in memes/ and music/ folders
 tools/make_sounds.py synthesises the sound effects and the music loop
 docker-compose.yml   Postgres + API + worker

@@ -11,6 +11,10 @@ export type ExerciseProps = {
   result: ReviewResult | null;
   submitting: boolean;
   onSubmit: (answer: Answer) => void;
+  /** Option indexes the Debug visor struck off (multiple choice). */
+  struck?: number[];
+  /** Node ids the Tracer lens ruled out (find the fault). */
+  cleared?: string[];
 };
 
 export type TileState = 'idle' | 'chosen' | 'right' | 'wrong';
@@ -28,20 +32,24 @@ export function Tile({
   badge,
   state,
   disabled,
+  struck,
   onPress,
 }: {
   label: string;
   badge: string;
   state: TileState;
   disabled?: boolean;
+  /** Crossed out by a perk: shown, but no longer a choice. */
+  struck?: boolean;
   onPress?: () => void;
 }) {
   const t = TILE[state];
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ selected: state === 'chosen', disabled }}
-      disabled={disabled}
+      accessibilityState={{ selected: state === 'chosen', disabled: disabled || struck }}
+      accessibilityHint={struck ? 'Struck off by the Debug visor' : undefined}
+      disabled={disabled || struck}
       onPress={() => {
         play('tap');
         onPress?.();
@@ -50,6 +58,7 @@ export function Tile({
         styles.tile,
         { backgroundColor: t.bg, borderColor: t.border, borderBottomColor: t.edge },
         pressed && { borderBottomWidth: 2, marginTop: 3 },
+        struck && { opacity: 0.45 },
       ]}
     >
       <View style={[styles.badge, { backgroundColor: t.key }]}>
@@ -61,7 +70,7 @@ export function Tile({
           <Text style={[styles.badgeText, { color: t.keyInk }]}>{badge}</Text>
         )}
       </View>
-      <Text style={styles.tileText}>{label}</Text>
+      <Text style={[styles.tileText, struck && { textDecorationLine: 'line-through' }]}>{label}</Text>
     </Pressable>
   );
 }

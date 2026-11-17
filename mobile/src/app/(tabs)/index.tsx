@@ -1,18 +1,22 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Circle } from 'react-native-svg';
 
 import { Icon, trackIcon } from '../../components/Icon';
 import { Mascot } from '../../components/Mascot';
-import { PathView } from '../../components/PathView';
+import { BitsPill } from '../../components/Bits';
+import { Chamfer } from '../../components/shapes';
+import { StatusBoard } from '../../components/StatusBoard';
+import { SystemMap } from '../../components/SystemMap';
 import { Button, Card } from '../../components/ui';
 import { api, type PathLesson, type Track, type TrackPath } from '../../lib/api';
-import { colors, fonts, radius, space, type } from '../../lib/theme';
+import { useLoop, useReduceMotion } from '../../lib/motion';
+import { play } from '../../lib/sound';
+import { colors, fonts, space, type } from '../../lib/theme';
 import { useUser } from '../../lib/UserContext';
 
-/** Learn: today's goal, your tracks, and the path of lessons for the active one. */
+/** Learn: the status board, your tracks, and the active track drawn as a system you bring online. */
 export default function Learn() {
   const { userId, user, error, refresh, setUser } = useUser();
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -57,8 +61,6 @@ export default function Learn() {
   }
 
   const { streak } = user;
-  const done = Math.min(user.today_count, user.daily_goal);
-  const left = user.daily_goal - done;
   const chosen = tracks.filter((t) => t.chosen);
   const showPath = path && path.track.id === user.active_track_id ? path : null;
 
@@ -78,13 +80,7 @@ export default function Learn() {
     router.push({ pathname: '/lesson', params: { id: lesson.id } });
   }
 
-  const goalLine = user.goal_met_today
-    ? 'Goal done for today'
-    : streak.at_risk
-      ? `${left} more to keep your streak`
-      : done > 0
-        ? `${left} more to hit today’s goal`
-        : `${user.daily_goal} cards starts a streak`;
+  const upNext = showPath?.units.flatMap((u) => u.lessons).find((l) => l.status === 'next') ?? null;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
@@ -94,6 +90,7 @@ export default function Learn() {
           <Image source={require('../../../assets/wordmark-light.png')} style={{ width: 92, height: 25 }} resizeMode="contain" />
         </View>
         <View style={styles.pills}>
+          <BitsPill bits={user.bits} />
           <View style={styles.pill} accessibilityLabel={`${streak.current} day streak`}>
             <Icon name="flame" size={20} color={streak.current === 0 ? colors.faint : undefined} />
             <Text style={[styles.pillText, { color: streak.current ? colors.gold : colors.faint }]}>{streak.current}</Text>
@@ -119,17 +116,7 @@ export default function Learn() {
           />
         }
       >
-        <View style={styles.goal}>
-          <GoalRing done={done} goal={user.daily_goal} met={user.goal_met_today} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.goalTitle}>{goalLine}</Text>
-            <Text style={type.small}>
-              {user.goal_met_today
-                ? `${streak.current}-day streak. Extra reps still count.`
-                : `${done} of ${user.daily_goal} cards done today.`}
-            </Text>
-          </View>
-        </View>
+        <StatusBoard user={user} />
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.switcher} contentContainerStyle={styles.switcherRow}>
           {chosen.map((t) => {
@@ -155,7 +142,7 @@ export default function Learn() {
 
         {showPath ? (
           <>
-            <PathView path={showPath} onOpen={open} />
+            <SystemMap key={showPath.track.id} path={showPath} onOpen={open} />
             {showPath.lessons_done === showPath.lessons_total ? (
               <Card style={styles.finished}>
                 <Mascot mood="happy" size={96} />
@@ -171,48 +158,39 @@ export default function Learn() {
           <ActivityIndicator color={colors.pink} style={{ marginTop: space(8) }} />
         )}
       </ScrollView>
+      {upNext ? <Continue title={upNext.title} onPress={() => open(upNext)} /> : null}
     </SafeAreaView>
   );
 }
 
-/** Today's cards as a ring that fills up, gold while in progress and jade once the goal is met. */
-function GoalRing({ done, goal, met }: { done: number; goal: number; met: boolean }) {
-  const size = 60;
-  const stroke = 7;
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  const frac = Math.min(1, done / Math.max(1, goal));
+/** The one-tap way into the next lesson. It breathes a little so the eye finds it. */
+function Continue({ title, onPress }: { title: string; onPress: () => void }) {
+  const reduce = useReduceMotion();
+  const t = useLoop(2600, 0, !reduce);
   return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-        <Circle cx={size / 2} cy={size / 2} r={r} stroke={colors.border} strokeWidth={stroke} fill="none" />
-        {frac > 0 ? (
-          <Circle
-            cx={size / 2}
-            cy={size / 2}
-            r={r}
-            stroke={met ? colors.jade : colors.gold}
-            strokeWidth={stroke}
-            strokeLinecap="round"
-            strokeDasharray={`${c * frac} ${c}`}
-            transform={`rotate(-90 ${size / 2} ${size / 2})`}
-            fill="none"
-          />
-        ) : null}
-      </Svg>
-      {met ? (
-        <Icon name="check" size={28} color={colors.jadeText} strokeWidth={3.4} />
-      ) : (
-        <Text style={styles.ringText}>
-          {done}/{goal}
-        </Text>
-      )}
-    </View>
+    <Animated.View style={[styles.cta, { transform: [{ scale: t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.025, 1] }) }] }]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Continue: ${title}`}
+        onPress={() => {
+          play('tap');
+          onPress();
+        }}
+        style={({ pressed }) => (pressed ? { transform: [{ translateY: 3 }] } : null)}
+      >
+        <Chamfer cut={12} fill={colors.pink} edge={colors.pinkDark} edgeHeight={5} style={styles.ctaFace}>
+          <Icon name="play" size={18} color={colors.pinkInk} strokeWidth={1.5} />
+          <Text style={styles.ctaText} numberOfLines={1}>
+            Continue: {title}
+          </Text>
+        </Chamfer>
+      </Pressable>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: space(5), paddingTop: space(2), gap: space(4), paddingBottom: space(10) },
+  container: { padding: space(5), paddingTop: space(2), gap: space(4), paddingBottom: space(24) },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space(6), backgroundColor: colors.bg },
   topBar: {
     flexDirection: 'row',
@@ -233,16 +211,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   pillText: { fontFamily: fonts.displayBold, fontSize: 17 },
-  goal: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space(4),
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    padding: space(4),
-  },
-  goalTitle: { fontFamily: fonts.display, fontSize: 18, lineHeight: 23, color: colors.text },
-  ringText: { fontFamily: fonts.displayBold, fontSize: 16, color: colors.text },
   switcher: { marginHorizontal: -space(5), flexGrow: 0 },
   switcherRow: { paddingHorizontal: space(5), gap: space(2) },
   tab: {
@@ -256,4 +224,7 @@ const styles = StyleSheet.create({
   tabOn: { backgroundColor: colors.card },
   tabText: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.muted },
   finished: { alignItems: 'center', gap: space(2), marginTop: space(2) },
+  cta: { position: 'absolute', left: space(5), right: space(5), bottom: space(3) },
+  ctaFace: { height: 56, paddingBottom: 5, paddingHorizontal: space(4), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  ctaText: { flexShrink: 1, fontFamily: fonts.display, fontSize: 17, color: colors.pinkInk },
 });

@@ -8,9 +8,10 @@ import { Icon } from '../Icon';
 import { Button } from '../ui';
 import { Tile, TILE, type ExerciseProps, type TileState } from './Tile';
 
-export function McqInput({ card, result, submitting, onSubmit }: ExerciseProps) {
-  const [choice, setChoice] = useState<number | null>(null);
+export function McqInput({ card, result, submitting, onSubmit, struck = [] }: ExerciseProps) {
+  const [picked, setChoice] = useState<number | null>(null);
   const locked = result !== null;
+  const choice = picked !== null && struck.includes(picked) ? null : picked; // a struck option can't stay chosen
   return (
     <View style={{ gap: space(3) }}>
       {card.diagram ? <Diagram diagram={card.diagram} /> : null}
@@ -21,7 +22,17 @@ export function McqInput({ card, result, submitting, onSubmit }: ExerciseProps) 
           else if (choice === i) state = 'wrong';
           else state = 'idle';
         }
-        return <Tile key={i} label={opt} badge={String.fromCharCode(65 + i)} state={state} disabled={locked} onPress={() => setChoice(i)} />;
+        return (
+          <Tile
+            key={i}
+            label={opt}
+            badge={String.fromCharCode(65 + i)}
+            state={state}
+            disabled={locked}
+            struck={!locked && struck.includes(i)}
+            onPress={() => setChoice(i)}
+          />
+        );
       })}
       {!locked && <Button title="Check" disabled={choice === null} loading={submitting} onPress={() => onSubmit(choice!)} />}
     </View>

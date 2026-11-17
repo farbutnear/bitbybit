@@ -1,4 +1,5 @@
 /** Hand-drawn icon set (24×24, rounded 2.2px strokes) so the UI never falls back to emoji. */
+import { View } from 'react-native';
 import Svg, { Circle, Ellipse, Path, Rect } from 'react-native-svg';
 
 import { colors } from '../lib/theme';
@@ -29,7 +30,9 @@ export type IconName =
   | 'storage'
   | 'caching'
   | 'async'
-  | 'consistency';
+  | 'consistency'
+  | 'play'
+  | 'loot';
 
 type Props = { name: IconName; size?: number; color?: string; strokeWidth?: number };
 
@@ -68,6 +71,12 @@ export function Icon({ name, size = 24, color = colors.text, strokeWidth = 2.2 }
       break;
     case 'close':
       body = <Path {...s} d="M6 6l12 12M18 6 6 18" />;
+      break;
+    case 'play':
+      body = <Path d="M8 5.5v13l11-6.5z" fill={color} stroke={color} strokeWidth={strokeWidth} strokeLinejoin="round" />;
+      break;
+    case 'loot':
+      body = <Path {...s} d="M5 8.5l7-4 7 4-7 4zM5 8.5v7l7 4 7-4v-7M12 12.5v7" />;
       break;
     case 'check':
       body = <Path {...s} d="M5 12.5 9.5 17 19 7.5" />;
@@ -193,10 +202,13 @@ export function Icon({ name, size = 24, color = colors.text, strokeWidth = 2.2 }
       );
       break;
   }
+  // The wrapping View keeps the icon above absolutely positioned backgrounds (hexagons, cut-corner panels) on web.
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      {body}
-    </Svg>
+    <View style={{ width: size, height: size }}>
+      <Svg width={size} height={size} viewBox="0 0 24 24">
+        {body}
+      </Svg>
+    </View>
   );
 }
 
