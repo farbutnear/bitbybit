@@ -1,5 +1,8 @@
 """Spaced repetition (FSRS) and answer grading.
 
+Card kinds: mcq, order, numeric, slider (log-scale estimate), spot (tap the faulty
+component), build (fill slots in an architecture diagram), match (pair items).
+
 Answers are auto-graded, so each review maps to one of two FSRS ratings:
 wrong -> Again, right -> Good.
 
@@ -48,9 +51,9 @@ def grade(card: Card, answer: Any) -> tuple[bool, Any]:
             raise AnswerError("order answer must contain each item exactly once")
         return answer == d["items"], d["items"]
 
-    if card.kind == "numeric":
+    if card.kind in ("numeric", "slider"):
         if not isinstance(answer, (int, float)) or isinstance(answer, bool):
-            raise AnswerError("numeric answer must be a number")
+            raise AnswerError(f"{card.kind} answer must be a number")
         expected = float(d["answer"])
         tol = float(d.get("tolerance", 1.0))  # ratio: 2.0 means "within 2x either way"
         if answer <= 0:
@@ -58,7 +61,48 @@ def grade(card: Card, answer: Any) -> tuple[bool, Any]:
         ratio = max(answer / expected, expected / answer)
         return ratio <= tol + 1e-9, expected
 
+    if card.kind == "spot":
+        # Tap the one component in the diagram that is at fault.
+        if not isinstance(answer, str):
+            raise AnswerError("spot answer must be a node id")
+        if answer not in {n["id"] for n in d["diagram"]["nodes"]}:
+            raise AnswerError("spot answer must be a node in the diagram")
+        return answer == d["answer"], d["answer"]
+
+    if card.kind == "build":
+        # Fill every empty slot in the diagram with a component from the bank.
+        if not isinstance(answer, dict) or not all(isinstance(v, str) for v in answer.values()):
+            raise AnswerError("build answer must map slot ids to component kinds")
+        if set(answer) != set(d["slots"]):
+            raise AnswerError("build answer must fill every slot, and only slots")
+        spare = list(d["bank"])
+        for kind in answer.values():
+            if kind not in spare:
+                raise AnswerError("build answer uses a component that is not in the bank")
+            spare.remove(kind)  # each bank tile can be placed once
+        return answer == d["slots"], d["slots"]
+
+    if card.kind == "match":
+        # Pair every left item with a right item.
+        want = {left: right for left, right in d["pairs"]}
+        ok_shape = isinstance(answer, list) and all(
+            isinstance(p, (list, tuple)) and len(p) == 2 and all(isinstance(x, str) for x in p) for p in answer
+        )
+        if not ok_shape:
+            raise AnswerError("match answer must be a list of [left, right] pairs")
+        if sorted(p[0] for p in answer) != sorted(want) or sorted(p[1] for p in answer) != sorted(want.values()):
+            raise AnswerError("match answer must use each item exactly once")
+        return all(want[left] == right for left, right in answer), d["pairs"]
+
     raise ValueError(f"unknown card kind {card.kind!r}")
+
+
+def _shuffled(items: list, rng: random.Random) -> list:
+    """A shuffled copy that never comes back in the original order (when it could differ)."""
+    out = list(items)
+    while len(set(map(str, out))) > 1 and out == list(items):
+        rng.shuffle(out)
+    return out
 
 
 def public_payload(card: Card, rng: random.Random | None = None) -> dict:
@@ -69,12 +113,19 @@ def public_payload(card: Card, rng: random.Random | None = None) -> dict:
     if card.kind == "mcq":
         return base | {"options": d["options"], "diagram": d.get("diagram")}
     if card.kind == "order":
-        items = list(d["items"])
-        while len(items) > 1 and items == d["items"]:
-            rng.shuffle(items)
-        return base | {"items": items}
+        return base | {"items": _shuffled(d["items"], rng)}
     if card.kind == "numeric":
         return base | {"unit": d.get("unit", ""), "hint": d.get("hint")}
+    if card.kind == "slider":
+        return base | {"min": d["min"], "max": d["max"], "unit": d.get("unit", ""), "hint": d.get("hint")}
+    if card.kind == "spot":
+        return base | {"diagram": d["diagram"]}
+    if card.kind == "build":
+        # Slot nodes carry only an id and a position; which component belongs there stays on the server.
+        return base | {"diagram": d["diagram"], "bank": _shuffled(d["bank"], rng)}
+    if card.kind == "match":
+        lefts = [p[0] for p in d["pairs"]]
+        return base | {"left": lefts, "right": _shuffled([p[1] for p in d["pairs"]], rng)}
     raise ValueError(f"unknown card kind {card.kind!r}")
 
 

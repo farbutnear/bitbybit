@@ -3,13 +3,15 @@
     {
       "id": "estimation-avg-qps",
       "track": "foundations",
-      "kind": "numeric",
+      "kind": "slider",
       "prompt": "An app has 10 million daily active users. Each makes about 20 requests per day. What is the average request rate?",
       "data": {
+        "min": 10,
+        "max": 1000000,
         "answer": 2315,
         "tolerance": 1.5,
-        "unit": "requests/s",
-        "hint": "A day is about 86,400 seconds (call it 10^5)."
+        "unit": "req/s",
+        "hint": "A day is about 100,000 seconds."
       },
       "explanation": "10M × 20 = 200M requests/day. 200M ÷ 86,400 s ≈ 2,300 req/s. Rounding a day to 10^5 s gives 2,000, which is close enough for capacity planning."
     },
@@ -28,12 +30,15 @@
     {
       "id": "estimation-storage-year",
       "track": "foundations",
-      "kind": "numeric",
+      "kind": "slider",
       "prompt": "Users create 50 million posts per day at about 1 KB each (text and metadata only). How much storage does one year of posts need?",
       "data": {
+        "min": 0.1,
+        "max": 10000,
         "answer": 18.25,
         "tolerance": 1.5,
-        "unit": "TB"
+        "unit": "TB",
+        "hint": "1 million × 1 KB = 1 GB."
       },
       "explanation": "50M × 1 KB = 50 GB/day. × 365 ≈ 18 TB/year, before replication. With 3× replication that's roughly 55 TB of raw disk."
     },
@@ -88,19 +93,93 @@
     {
       "id": "compute-slow-node",
       "track": "scaling",
-      "kind": "mcq",
-      "prompt": "The load balancer uses round-robin. What happens to app-3, and what fixes it?",
+      "kind": "spot",
+      "prompt": "Users report slow pages. The load balancer uses round-robin. Tap the component causing the slowdown.",
       "data": {
-        "diagram": "            ┌─▶ app-1  p99 40 ms\n[ LB: RR ] ─┼─▶ app-2  p99 40 ms\n            └─▶ app-3  p99 900 ms (failing disk)",
-        "options": [
-          "Nothing; round-robin automatically avoids slow servers",
-          "app-3 gets a third of traffic, its queue grows and users hit huge tail latency; use least-connections plus health checks to drain it",
-          "The LB crashes because app-3 is slow",
-          "app-1 and app-2 slow down to match app-3"
-        ],
-        "answer": 1
+        "diagram": {
+          "nodes": [
+            {
+              "id": "users",
+              "kind": "client",
+              "label": "Users",
+              "x": 0,
+              "y": 1
+            },
+            {
+              "id": "lb",
+              "kind": "lb",
+              "label": "Load balancer",
+              "x": 1,
+              "y": 1,
+              "note": "round-robin"
+            },
+            {
+              "id": "app1",
+              "kind": "app",
+              "label": "app-1",
+              "x": 2,
+              "y": 0,
+              "note": "p99 40 ms"
+            },
+            {
+              "id": "app2",
+              "kind": "app",
+              "label": "app-2",
+              "x": 2,
+              "y": 1,
+              "note": "p99 40 ms"
+            },
+            {
+              "id": "app3",
+              "kind": "app",
+              "label": "app-3",
+              "x": 2,
+              "y": 2,
+              "note": "p99 900 ms"
+            },
+            {
+              "id": "db",
+              "kind": "db",
+              "label": "Database",
+              "x": 3,
+              "y": 1,
+              "note": "CPU 12%"
+            }
+          ],
+          "edges": [
+            [
+              "users",
+              "lb"
+            ],
+            [
+              "lb",
+              "app1"
+            ],
+            [
+              "lb",
+              "app2"
+            ],
+            [
+              "lb",
+              "app3"
+            ],
+            [
+              "app1",
+              "db"
+            ],
+            [
+              "app2",
+              "db"
+            ],
+            [
+              "app3",
+              "db"
+            ]
+          ]
+        },
+        "answer": "app3"
       },
-      "explanation": "Round-robin ignores how busy a server is, so a slow node keeps getting its full share and requests pile up there. Least-connections (or latency-aware) balancing sends less to it, and failing health checks remove it entirely."
+      "explanation": "app-3 is slow, and round-robin still hands it a third of the traffic, so requests queue up there. Least-connections balancing and health checks would steer work away from it. The database at 12% CPU is fine, so it isn't the bottleneck."
     },
     {
       "id": "compute-scaling-path",
@@ -195,6 +274,70 @@
       "explanation": "Wide-column stores excel at huge write volumes and queries known in advance that hit one partition (device_id) and a sorted range (time). They give up joins and multi-row transactions, which the other three workloads need."
     },
     {
+      "id": "caching-build-cache",
+      "track": "caching",
+      "kind": "build",
+      "prompt": "Most requests read the same few items, and the database is at 90% CPU. Add the component that lets repeated reads skip the database.",
+      "data": {
+        "diagram": {
+          "nodes": [
+            {
+              "id": "users",
+              "kind": "client",
+              "label": "Users",
+              "x": 0,
+              "y": 0.5
+            },
+            {
+              "id": "app",
+              "kind": "app",
+              "label": "App",
+              "x": 1,
+              "y": 0.5
+            },
+            {
+              "id": "s1",
+              "kind": "slot",
+              "x": 2,
+              "y": 0
+            },
+            {
+              "id": "db",
+              "kind": "db",
+              "label": "Database",
+              "x": 2,
+              "y": 1,
+              "note": "CPU 90%"
+            }
+          ],
+          "edges": [
+            [
+              "users",
+              "app"
+            ],
+            [
+              "app",
+              "s1"
+            ],
+            [
+              "app",
+              "db"
+            ]
+          ]
+        },
+        "slots": {
+          "s1": "cache"
+        },
+        "bank": [
+          "cache",
+          "queue",
+          "lb",
+          "cdn"
+        ]
+      },
+      "explanation": "A cache next to the app answers repeated reads from memory, so only misses reach the database. A CDN also caches, but it sits in front of the app and serves static files. A queue or load balancer wouldn't reduce database reads at all."
+    },
+    {
       "id": "caching-cache-aside",
       "track": "caching",
       "kind": "mcq",
@@ -216,7 +359,55 @@
       "kind": "mcq",
       "prompt": "A hot key expires and the database falls over. Which fix addresses the actual cause?",
       "data": {
-        "diagram": "10,000 req/s ─▶ [ app ] ─▶ [ cache ]  \"home_feed\" TTL expired\n                  │\n                  └──────▶ [ database ]  CPU 100%",
+        "diagram": {
+          "nodes": [
+            {
+              "id": "users",
+              "kind": "client",
+              "label": "Users",
+              "x": 0,
+              "y": 0.5,
+              "note": "10,000 req/s"
+            },
+            {
+              "id": "app",
+              "kind": "app",
+              "label": "App",
+              "x": 1,
+              "y": 0.5
+            },
+            {
+              "id": "cache",
+              "kind": "cache",
+              "label": "Cache",
+              "x": 2,
+              "y": 0,
+              "note": "hot key expired"
+            },
+            {
+              "id": "db",
+              "kind": "db",
+              "label": "Database",
+              "x": 2,
+              "y": 1,
+              "note": "CPU 100%"
+            }
+          ],
+          "edges": [
+            [
+              "users",
+              "app"
+            ],
+            [
+              "app",
+              "cache"
+            ],
+            [
+              "app",
+              "db"
+            ]
+          ]
+        },
         "options": [
           "Set the TTL to never expire",
           "Single-flight: one request recomputes the value while the others wait or get the stale copy",
@@ -272,6 +463,70 @@
       "explanation": "The queue decouples request latency from slow work and acts as a buffer: an upload spike becomes a longer queue, not timeouts. You can scale consumers on queue depth. It does not make work faster, and most queues deliver at-least-once, not exactly-once."
     },
     {
+      "id": "async-build-upload",
+      "track": "async",
+      "kind": "build",
+      "prompt": "Transcoding a video takes two minutes. Complete the design so the upload API can reply straight away.",
+      "data": {
+        "diagram": {
+          "nodes": [
+            {
+              "id": "api",
+              "kind": "app",
+              "label": "Upload API",
+              "x": 0,
+              "y": 0
+            },
+            {
+              "id": "s1",
+              "kind": "slot",
+              "x": 1,
+              "y": 0
+            },
+            {
+              "id": "s2",
+              "kind": "slot",
+              "x": 2,
+              "y": 0
+            },
+            {
+              "id": "store",
+              "kind": "box",
+              "label": "Video storage",
+              "x": 3,
+              "y": 0
+            }
+          ],
+          "edges": [
+            [
+              "api",
+              "s1"
+            ],
+            [
+              "s1",
+              "s2"
+            ],
+            [
+              "s2",
+              "store"
+            ]
+          ]
+        },
+        "slots": {
+          "s1": "queue",
+          "s2": "worker"
+        },
+        "bank": [
+          "queue",
+          "worker",
+          "cache",
+          "lb",
+          "cdn"
+        ]
+      },
+      "explanation": "The API puts a job on the queue and replies at once; workers pull jobs and transcode at their own pace. A cache or CDN speeds up reads and a load balancer spreads requests, but none of them takes slow work out of the request."
+    },
+    {
       "id": "async-idempotency",
       "track": "async",
       "kind": "mcq",
@@ -317,6 +572,33 @@
         ]
       },
       "explanation": "Writing to the DB and publishing to a broker can't be done atomically, so you write the event into the DB in the same transaction and publish it afterwards. If the relay crashes between publishing and marking, the event is published again, so consumers must be idempotent."
+    },
+    {
+      "id": "async-match-patterns",
+      "track": "async",
+      "kind": "match",
+      "prompt": "Match each problem to the pattern that solves it.",
+      "data": {
+        "pairs": [
+          [
+            "The same message arrives twice",
+            "Idempotent consumer"
+          ],
+          [
+            "Save to the database and publish an event, as one step",
+            "Outbox"
+          ],
+          [
+            "A burst of slow jobs",
+            "Queue with workers"
+          ],
+          [
+            "Several services each need every event",
+            "Publish/subscribe"
+          ]
+        ]
+      },
+      "explanation": "Idempotent consumers make duplicates harmless. The outbox ties the event to the database transaction. A queue lets workers absorb a burst. Publish/subscribe gives every subscriber its own copy."
     },
     {
       "id": "consistency-cap",

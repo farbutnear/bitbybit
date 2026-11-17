@@ -21,7 +21,9 @@
                     "llama": "Anyone can list features. Numbers are where designs get interesting."
                   }
                 },
-                { "card": "estimation-nfr" },
+                {
+                  "card": "estimation-nfr"
+                },
                 {
                   "teach": {
                     "title": "Latency comes in sizes",
@@ -29,7 +31,9 @@
                     "llama": "A network hop is a memory read that took the scenic route."
                   }
                 },
-                { "card": "estimation-latency-dc" }
+                {
+                  "card": "estimation-latency-dc"
+                }
               ]
             },
             {
@@ -43,7 +47,9 @@
                     "llama": "If your estimate needs a calculator, it's too precise."
                   }
                 },
-                { "card": "estimation-avg-qps" },
+                {
+                  "card": "estimation-avg-qps"
+                },
                 {
                   "teach": {
                     "title": "Plan for the peak",
@@ -51,7 +57,9 @@
                     "llama": "Nobody gets paged for the average."
                   }
                 },
-                { "card": "estimation-server-count" },
+                {
+                  "card": "estimation-server-count"
+                },
                 {
                   "teach": {
                     "title": "Storage adds up quietly",
@@ -59,7 +67,9 @@
                     "llama": "Disks fill up the way inboxes do."
                   }
                 },
-                { "card": "estimation-storage-year" }
+                {
+                  "card": "estimation-storage-year"
+                }
               ]
             }
           ]
@@ -84,10 +94,95 @@
                   "teach": {
                     "title": "Up or out",
                     "body": "Scaling up means a bigger machine: simple, but there's a ceiling and it stays a single point of failure. Scaling out means more machines behind a load balancer. Teams usually scale up first, then out, and split the database last because it's the hardest part.",
-                    "llama": "Buying a bigger box is a strategy. Briefly."
+                    "llama": "Buying a bigger box is a strategy. Briefly.",
+                    "diagram": {
+                      "nodes": [
+                        {
+                          "id": "users",
+                          "kind": "client",
+                          "label": "Users",
+                          "x": 0,
+                          "y": 1
+                        },
+                        {
+                          "id": "lb",
+                          "kind": "lb",
+                          "label": "Load balancer",
+                          "x": 1,
+                          "y": 1
+                        },
+                        {
+                          "id": "app1",
+                          "kind": "app",
+                          "label": "app-1",
+                          "x": 2,
+                          "y": 0
+                        },
+                        {
+                          "id": "app2",
+                          "kind": "app",
+                          "label": "app-2",
+                          "x": 2,
+                          "y": 1
+                        },
+                        {
+                          "id": "app3",
+                          "kind": "app",
+                          "label": "app-3",
+                          "x": 2,
+                          "y": 2
+                        }
+                      ],
+                      "edges": [
+                        [
+                          "users",
+                          "lb"
+                        ],
+                        [
+                          "lb",
+                          "app1"
+                        ],
+                        [
+                          "lb",
+                          "app2"
+                        ],
+                        [
+                          "lb",
+                          "app3"
+                        ]
+                      ],
+                      "flows": [
+                        {
+                          "path": [
+                            "users",
+                            "lb",
+                            "app1"
+                          ],
+                          "speed": "fast"
+                        },
+                        {
+                          "path": [
+                            "users",
+                            "lb",
+                            "app2"
+                          ],
+                          "speed": "fast"
+                        },
+                        {
+                          "path": [
+                            "users",
+                            "lb",
+                            "app3"
+                          ],
+                          "speed": "fast"
+                        }
+                      ]
+                    }
                   }
                 },
-                { "card": "compute-scaling-path" },
+                {
+                  "card": "compute-scaling-path"
+                },
                 {
                   "teach": {
                     "title": "Keep servers forgetful",
@@ -95,7 +190,9 @@
                     "llama": "The best servers remember nothing about you. Don't take it personally."
                   }
                 },
-                { "card": "compute-stateless" }
+                {
+                  "card": "compute-stateless"
+                }
               ]
             },
             {
@@ -109,7 +206,9 @@
                     "llama": "Layer 4 delivers the envelope. Layer 7 opens it."
                   }
                 },
-                { "card": "compute-l7" },
+                {
+                  "card": "compute-l7"
+                },
                 {
                   "teach": {
                     "title": "Round-robin is fair, not smart",
@@ -117,7 +216,9 @@
                     "llama": "Treating everyone equally is lovely until one of them is on fire."
                   }
                 },
-                { "card": "compute-slow-node" }
+                {
+                  "card": "compute-slow-node"
+                }
               ]
             }
           ]
@@ -145,15 +246,72 @@
                     "llama": "Without an index, the database reads everything. It won't complain. It'll just be slow."
                   }
                 },
-                { "card": "storage-composite-index" },
+                {
+                  "card": "storage-composite-index"
+                },
                 {
                   "teach": {
                     "title": "Replicas run slightly behind",
                     "body": "Read replicas copy the leader's writes, usually asynchronously, so they can be a moment out of date. A read sent to a replica right after a write may miss it. That gap is called replication lag.",
-                    "llama": "A replica is the leader, a few milliseconds ago."
+                    "llama": "A replica is the leader, a few milliseconds ago.",
+                    "diagram": {
+                      "nodes": [
+                        {
+                          "id": "app",
+                          "kind": "app",
+                          "label": "App",
+                          "x": 0,
+                          "y": 0
+                        },
+                        {
+                          "id": "leader",
+                          "kind": "db",
+                          "label": "Leader",
+                          "x": 1,
+                          "y": 0,
+                          "note": "has the write"
+                        },
+                        {
+                          "id": "replica",
+                          "kind": "replica",
+                          "label": "Replica",
+                          "x": 2,
+                          "y": 0,
+                          "note": "a moment behind"
+                        }
+                      ],
+                      "edges": [
+                        [
+                          "app",
+                          "leader"
+                        ],
+                        [
+                          "leader",
+                          "replica"
+                        ]
+                      ],
+                      "flows": [
+                        {
+                          "path": [
+                            "app",
+                            "leader"
+                          ],
+                          "speed": "fast"
+                        },
+                        {
+                          "path": [
+                            "leader",
+                            "replica"
+                          ],
+                          "speed": "slow"
+                        }
+                      ]
+                    }
                   }
                 },
-                { "card": "storage-replica-lag" }
+                {
+                  "card": "storage-replica-lag"
+                }
               ]
             },
             {
@@ -167,7 +325,9 @@
                     "llama": "Modulo is easy right up until you add a server."
                   }
                 },
-                { "card": "storage-modulo-resharding" },
+                {
+                  "card": "storage-modulo-resharding"
+                },
                 {
                   "teach": {
                     "title": "Pick the store for the query",
@@ -175,7 +335,9 @@
                     "llama": "Every database is fast at the thing it was built for."
                   }
                 },
-                { "card": "storage-fit" }
+                {
+                  "card": "storage-fit"
+                }
               ]
             }
           ]
@@ -200,10 +362,81 @@
                   "teach": {
                     "title": "Cache-aside",
                     "body": "A cache keeps answers in memory so the database isn't asked twice. In cache-aside, the application runs the show: look in the cache first; on a miss, read the database, then put the result in the cache.",
-                    "llama": "Ten people asked the same question. The database answered ten times. Embarrassing."
+                    "llama": "Ten people asked the same question. The database answered ten times. Embarrassing.",
+                    "diagram": {
+                      "nodes": [
+                        {
+                          "id": "users",
+                          "kind": "client",
+                          "label": "Users",
+                          "x": 0,
+                          "y": 0.5
+                        },
+                        {
+                          "id": "app",
+                          "kind": "app",
+                          "label": "App",
+                          "x": 1,
+                          "y": 0.5
+                        },
+                        {
+                          "id": "cache",
+                          "kind": "cache",
+                          "label": "Cache",
+                          "x": 2,
+                          "y": 0,
+                          "note": "1 ms"
+                        },
+                        {
+                          "id": "db",
+                          "kind": "db",
+                          "label": "Database",
+                          "x": 2,
+                          "y": 1,
+                          "note": "50 ms"
+                        }
+                      ],
+                      "edges": [
+                        [
+                          "users",
+                          "app"
+                        ],
+                        [
+                          "app",
+                          "cache"
+                        ],
+                        [
+                          "app",
+                          "db"
+                        ]
+                      ],
+                      "flows": [
+                        {
+                          "path": [
+                            "users",
+                            "app",
+                            "cache"
+                          ],
+                          "speed": "fast"
+                        },
+                        {
+                          "path": [
+                            "users",
+                            "app",
+                            "db"
+                          ],
+                          "speed": "slow"
+                        }
+                      ]
+                    }
                   }
                 },
-                { "card": "caching-cache-aside" },
+                {
+                  "card": "caching-build-cache"
+                },
+                {
+                  "card": "caching-cache-aside"
+                },
                 {
                   "teach": {
                     "title": "Misses set the pace",
@@ -211,7 +444,9 @@
                     "llama": "A 90% hit ratio sounds great until you meet the other 10%."
                   }
                 },
-                { "card": "caching-avg-latency" }
+                {
+                  "card": "caching-avg-latency"
+                }
               ]
             },
             {
@@ -225,7 +460,9 @@
                     "llama": "One request can do the work. The other 9,999 can queue politely."
                   }
                 },
-                { "card": "caching-stampede" },
+                {
+                  "card": "caching-stampede"
+                },
                 {
                   "teach": {
                     "title": "Caching near the user",
@@ -233,7 +470,9 @@
                     "llama": "The fastest request is the one your servers never hear about."
                   }
                 },
-                { "card": "caching-cdn" }
+                {
+                  "card": "caching-cdn"
+                }
               ]
             }
           ]
@@ -258,10 +497,68 @@
                   "teach": {
                     "title": "Answer now, work later",
                     "body": "Some work is too slow to do while the user waits. Put a message on a queue, reply straight away, and let workers process it at their own pace. A traffic spike becomes a longer queue instead of timeouts.",
-                    "llama": "\"We're on it\" is a perfectly good response."
+                    "llama": "\"We're on it\" is a perfectly good response.",
+                    "diagram": {
+                      "nodes": [
+                        {
+                          "id": "api",
+                          "kind": "app",
+                          "label": "API",
+                          "x": 0,
+                          "y": 0,
+                          "note": "replies at once"
+                        },
+                        {
+                          "id": "q",
+                          "kind": "queue",
+                          "label": "Queue",
+                          "x": 1,
+                          "y": 0
+                        },
+                        {
+                          "id": "w",
+                          "kind": "worker",
+                          "label": "Worker",
+                          "x": 2,
+                          "y": 0,
+                          "note": "takes its time"
+                        }
+                      ],
+                      "edges": [
+                        [
+                          "api",
+                          "q"
+                        ],
+                        [
+                          "q",
+                          "w"
+                        ]
+                      ],
+                      "flows": [
+                        {
+                          "path": [
+                            "api",
+                            "q"
+                          ],
+                          "speed": "fast"
+                        },
+                        {
+                          "path": [
+                            "q",
+                            "w"
+                          ],
+                          "speed": "slow"
+                        }
+                      ]
+                    }
                   }
                 },
-                { "card": "async-queue-why" },
+                {
+                  "card": "async-queue-why"
+                },
+                {
+                  "card": "async-build-upload"
+                },
                 {
                   "teach": {
                     "title": "One reader or every reader",
@@ -269,7 +566,9 @@
                     "llama": "A queue is a to-do list. A topic is a group chat."
                   }
                 },
-                { "card": "async-pubsub" }
+                {
+                  "card": "async-pubsub"
+                }
               ]
             },
             {
@@ -283,7 +582,9 @@
                     "llama": "At-least-once means twice, on the worst possible day."
                   }
                 },
-                { "card": "async-idempotency" },
+                {
+                  "card": "async-idempotency"
+                },
                 {
                   "teach": {
                     "title": "Two writes, one transaction",
@@ -291,7 +592,12 @@
                     "llama": "Write it down first. Announce it second."
                   }
                 },
-                { "card": "async-outbox" }
+                {
+                  "card": "async-outbox"
+                },
+                {
+                  "card": "async-match-patterns"
+                }
               ]
             }
           ]
@@ -319,7 +625,9 @@
                     "llama": "You don't choose whether partitions happen. Only what you do about them."
                   }
                 },
-                { "card": "consistency-cap" },
+                {
+                  "card": "consistency-cap"
+                },
                 {
                   "teach": {
                     "title": "Spend consistency where it matters",
@@ -327,7 +635,9 @@
                     "llama": "Nobody sues over a like count."
                   }
                 },
-                { "card": "consistency-which-strong" }
+                {
+                  "card": "consistency-which-strong"
+                }
               ]
             },
             {
@@ -341,8 +651,12 @@
                     "llama": "Ask enough replicas and at least one of them was paying attention."
                   }
                 },
-                { "card": "consistency-quorum-why" },
-                { "card": "consistency-quorum-r" }
+                {
+                  "card": "consistency-quorum-why"
+                },
+                {
+                  "card": "consistency-quorum-r"
+                }
               ]
             }
           ]

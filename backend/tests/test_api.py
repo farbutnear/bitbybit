@@ -15,7 +15,13 @@ def make_user(client, tz="Asia/Singapore", goal=5, hour=20, **extra):
 def right_answer(session_factory, card_id):
     with session_factory() as db:
         c = db.get(Card, card_id)
-        return c.data["items"] if c.kind == "order" else c.data["answer"]
+        if c.kind == "order":
+            return c.data["items"]
+        if c.kind == "build":
+            return c.data["slots"]
+        if c.kind == "match":
+            return c.data["pairs"]
+        return c.data["answer"]
 
 
 def wrong_answer(session_factory, card_id):
@@ -266,3 +272,21 @@ def test_dead_tokens_are_pruned(client, session_factory, sender):
     out = client.post(f"/debug/users/{uid}/test-push").json()
     assert out["failed"] == 1 and out["pruned"] == 1
     assert client.get(f"/users/{uid}").json()["has_push"] is False
+
+
+def test_every_lesson_in_the_course_can_be_played(client, session_factory):
+    """Plays all tracks end to end, so every card kind goes through payload -> answer -> grade."""
+    all_tracks = [t["id"] for t in client.get("/tracks").json() if t["available"]]
+    uid = make_user(client, goal=50, track_ids=all_tracks)["id"]
+    kinds = set()
+    for track in all_tracks:
+        while True:
+            nxt = lesson_ids(path(client, uid, track), "next")
+            if not nxt:
+                break
+            les = client.get(f"/users/{uid}/lessons/{nxt[0]}").json()
+            kinds |= {s["card"]["kind"] for s in les["steps"] if s["type"] == "card"}
+            results, _ = play_lesson(client, session_factory, uid, nxt[0])
+            assert all(r["correct"] for r in results), nxt[0]
+    assert kinds == {"mcq", "order", "numeric", "slider", "spot", "build", "match"}
+    assert client.get(f"/users/{uid}").json()["learned_count"] == 28
