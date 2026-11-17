@@ -17,6 +17,8 @@ so they are original and free to ship. Replace any of them with a file of the sa
 
 - **Meme clips**: put audio files in `memes/`. With meme mode on, a wrong answer plays one at random
   instead of `wrong.wav`. Delete `womp.wav` if you don't want it in the pool.
+  Everything in `memes/` except `womp.wav` is git-ignored, so a clip you downloaded plays on your
+  phone but is never pushed to the public repo. To ship a clip you own, `git add -f` it.
 - **Music**: put audio files in `music/`. As soon as there is a file other than
   `placeholder-loop.wav`, the placeholder stops being used. One track is picked each time the app
   starts and it loops.

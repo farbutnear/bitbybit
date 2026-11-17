@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Personal meme clips: bundled on your machine, never pushed (see assets/sounds/README.md).
+assets/sounds/memes/*
+!assets/sounds/memes/womp.wav
