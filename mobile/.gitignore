@@ -43,3 +43,4 @@ yarn-error.*
 # Personal meme clips: bundled on your machine, never pushed (see assets/sounds/README.md).
 assets/sounds/memes/*
 !assets/sounds/memes/womp.wav
+!assets/sounds/memes/faaah.mp3
