@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { play } from '../lib/sound';
+import { Chamfer } from './shapes';
 import { colors, fonts, radius, space } from '../lib/theme';
 
 type Variant = 'primary' | 'secondary' | 'jade' | 'ruby';
@@ -15,7 +16,7 @@ const VARIANTS: Record<Variant, { face: string; edge: string; ink: string }> = {
 
 const EDGE = 5;
 
-/** Chunky button: a solid bottom edge that the face sinks into when pressed. */
+/** The app's button: a cut-corner slab on a darker edge, which it sinks toward when pressed. */
 export function Button({
   title,
   onPress,
@@ -42,22 +43,15 @@ export function Button({
         onPress();
       }}
       disabled={off}
-      style={({ pressed }) => [
-        styles.button,
-        {
-          backgroundColor: off ? colors.card : v.face,
-          borderBottomColor: off ? colors.border : v.edge,
-          borderBottomWidth: pressed ? 0 : EDGE,
-          marginTop: pressed ? EDGE : 0,
-        },
-        style,
-      ]}
+      style={({ pressed }) => [style, pressed && { transform: [{ translateY: 3 }] }]}
     >
-      {loading ? (
-        <ActivityIndicator color={v.ink} />
-      ) : (
-        <Text style={[styles.buttonText, { color: off ? colors.faint : v.ink }]}>{title}</Text>
-      )}
+      <Chamfer cut={12} fill={off ? colors.card : v.face} edge={off ? colors.border : v.edge} edgeHeight={EDGE} style={styles.button}>
+        {loading ? (
+          <ActivityIndicator color={v.ink} />
+        ) : (
+          <Text style={[styles.buttonText, { color: off ? colors.faint : v.ink }]}>{title}</Text>
+        )}
+      </Chamfer>
     </Pressable>
   );
 }
@@ -97,7 +91,11 @@ export function ProgressBar({ value, color = colors.pink, height = 12 }: { value
 }
 
 export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+  return (
+    <Chamfer cut={14} fill={colors.card} stroke={colors.border} style={[styles.card, style]}>
+      {children}
+    </Chamfer>
+  );
 }
 
 export function SectionTitle({ children }: { children: ReactNode }) {
@@ -105,13 +103,7 @@ export function SectionTitle({ children }: { children: ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-  button: {
-    minHeight: 54,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: space(5),
-  },
+  button: { minHeight: 56, paddingBottom: EDGE, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space(5) },
   buttonText: { fontFamily: fonts.displayBold, fontSize: 18, letterSpacing: 0.3 },
   chip: {
     paddingVertical: space(2),
@@ -125,12 +117,6 @@ const styles = StyleSheet.create({
   chipText: { color: colors.text, fontSize: 15, fontFamily: fonts.bodyBold },
   track: { backgroundColor: colors.cardRaised, overflow: 'hidden', width: '100%' },
   gloss: { position: 'absolute', top: 2, left: 6, right: 6, backgroundColor: 'rgba(255,255,255,0.28)' },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    borderWidth: 2,
-    borderColor: colors.border,
-    padding: space(4),
-  },
+  card: { padding: space(4) },
   sectionTitle: { fontFamily: fonts.display, fontSize: 20, color: colors.text, marginBottom: space(3) },
 });

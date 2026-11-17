@@ -1,9 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 
 import type { Answer, ReviewResult, SessionCard } from '../../lib/api';
 import { play } from '../../lib/sound';
 import { colors, fonts, radius, space } from '../../lib/theme';
 import { Icon } from '../Icon';
+import { Hex } from '../shapes';
 
 /** What every exercise receives. `result` is set once graded, and inputs lock. */
 export type ExerciseProps = {
@@ -61,7 +62,7 @@ export function Tile({
         struck && { opacity: 0.45 },
       ]}
     >
-      <View style={[styles.badge, { backgroundColor: t.key }]}>
+      <Hex width={30} fill={t.key}>
         {state === 'right' ? (
           <Icon name="check" size={16} color={t.keyInk} strokeWidth={3} />
         ) : state === 'wrong' ? (
@@ -69,7 +70,7 @@ export function Tile({
         ) : (
           <Text style={[styles.badgeText, { color: t.keyInk }]}>{badge}</Text>
         )}
-      </View>
+      </Hex>
       <Text style={[styles.tileText, struck && { textDecorationLine: 'line-through' }]}>{label}</Text>
     </Pressable>
   );
@@ -86,7 +87,6 @@ const styles = StyleSheet.create({
     paddingVertical: space(3),
     paddingHorizontal: space(3),
   },
-  badge: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   badgeText: { fontFamily: fonts.displayBold, fontSize: 15 },
   tileText: { fontFamily: fonts.body, fontSize: 16, lineHeight: 22, color: colors.text, flex: 1 },
 });
