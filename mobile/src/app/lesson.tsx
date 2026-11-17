@@ -1,25 +1,34 @@
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View, type ScrollViewInstance } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '../components/Icon';
 import { Mascot } from '../components/Mascot';
 import { formatCorrectAnswer, QuestionCard } from '../components/QuestionCards';
 import { ResultPanel } from '../components/ResultPanel';
+import { TeachScreen } from '../components/TeachScreen';
 import { Button, ProgressBar } from '../components/ui';
-import { api, type Answer, type ReviewResult, type SessionCard } from '../lib/api';
+import { api, type Answer, type LessonCompletion, type ReviewResult, type SessionCard, type TeachStep } from '../lib/api';
 import { colors, fonts, radius, space, type } from '../lib/theme';
 import { useUser } from '../lib/UserContext';
 
-/** A card in this lesson. Missed cards are appended once more as a retry. */
-type Item = { card: SessionCard; isRetry: boolean; key: string };
+/**
+ * Plays either a lesson from the path (?id=...) or a review session (?mode=review).
+ * A lesson alternates teaching screens and cards; a review is cards only.
+ * Missed cards come back once at the end.
+ */
+type Item =
+  | { type: 'teach'; step: TeachStep; key: string }
+  | { type: 'card'; card: SessionCard; isRetry: boolean; key: string };
+
+type Loaded = { title: string; items: Item[]; learned: number };
 
 const REASON: Record<SessionCard['reason'], { label: string; color: string }> = {
   new: { label: 'New', color: colors.pink },
   due: { label: 'Review', color: colors.gold },
-  ahead: { label: 'Extra practice', color: colors.muted },
+  ahead: { label: 'Practice', color: colors.muted },
 };
 
 function haptic(kind: 'success' | 'error') {
@@ -29,68 +38,107 @@ function haptic(kind: 'success' | 'error') {
   ).catch(() => {});
 }
 
-export default function Lesson() {
+export default function LessonRoute() {
+  const params = useLocalSearchParams<{ id?: string; mode?: string; practice?: string }>();
+  const lessonId = params.mode === 'review' ? null : (params.id ?? null);
+  const practice = params.practice === '1';
+  // Keyed so that moving on to the next lesson starts from a clean slate.
+  return <Player key={`${lessonId ?? 'review'}:${practice}`} lessonId={lessonId} practice={practice} />;
+}
+
+function Player({ lessonId, practice }: { lessonId: string | null; practice: boolean }) {
   const { userId, user, refresh } = useUser();
-  const [queue, setQueue] = useState<Item[] | null>(null);
+  const insets = useSafeAreaInsets();
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [retries, setRetries] = useState<Item[]>([]);
   const [idx, setIdx] = useState(0);
   const [result, setResult] = useState<ReviewResult | null>(null);
   const [last, setLast] = useState<ReviewResult | null>(null);
   const [metGoal, setMetGoal] = useState(false);
   const [stats, setStats] = useState({ answered: 0, correct: 0 });
   const [submitting, setSubmitting] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+  const [completion, setCompletion] = useState<LessonCompletion | null>(null);
+  const [finished, setFinished] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const startedAt = useRef(0);
   const scroll = useRef<ScrollViewInstance>(null);
 
   useEffect(() => {
     if (!userId) return;
-    api
-      .getSession(userId)
-      .then((s) => {
+    const load = lessonId
+      ? api.lesson(userId, lessonId).then((les): Loaded => ({
+          title: les.title,
+          learned: 0,
+          items: les.steps.map((s, i) =>
+            s.type === 'teach'
+              ? { type: 'teach', step: s, key: `teach:${i}` }
+              : { type: 'card', card: s.card, isRetry: false, key: s.card.id },
+          ),
+        }))
+      : api.reviewQueue(userId, practice).then((q): Loaded => ({
+          title: practice ? 'Practice' : 'Review',
+          learned: q.learned_count,
+          items: q.cards.map((card) => ({ type: 'card', card, isRetry: false, key: card.id })),
+        }));
+    load
+      .then((l) => {
         startedAt.current = Date.now();
-        setQueue(s.cards.map((card) => ({ card, isRetry: false, key: card.id })));
+        setLoaded(l);
       })
-      .catch((e) => setError(e.message));
-  }, [userId]);
-
-  const done = queue !== null && idx >= queue.length;
-  useEffect(() => {
-    if (done) refresh();
-  }, [done, refresh]);
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+  }, [userId, lessonId, practice]);
 
   if (error) {
     return (
       <SafeAreaView style={styles.centered}>
         <Mascot mood="sad" size={120} />
-        <Text style={[type.heading, { textAlign: 'center' }]}>Couldn’t start the lesson</Text>
+        <Text style={[type.heading, { textAlign: 'center' }]}>That didn’t load</Text>
         <Text style={[type.small, { textAlign: 'center' }]}>{error}</Text>
         <Button title="Back" variant="secondary" onPress={() => router.back()} style={styles.fullWidth} />
       </SafeAreaView>
     );
   }
-  if (!queue) {
+  if (!loaded) {
     return (
       <SafeAreaView style={styles.centered}>
         <ActivityIndicator color={colors.pink} />
       </SafeAreaView>
     );
   }
+
+  const queue = [...loaded.items, ...retries];
+
   if (queue.length === 0) {
+    // Only a review can be empty: nothing is due.
     return (
       <SafeAreaView style={styles.centered}>
-        <Mascot mood="idle" size={120} />
-        <Text style={[type.heading, { textAlign: 'center' }]}>No cards yet</Text>
-        <Text style={[type.small, { textAlign: 'center' }]}>The server has no content loaded.</Text>
+        <Mascot mood="happy" size={130} />
+        <Text style={[type.title, { textAlign: 'center' }]}>Nothing due</Text>
+        <Text style={[type.small, { textAlign: 'center', fontSize: 16 }]}>
+          {loaded.learned > 0
+            ? 'Your reviews are all caught up. Cards come back when you’re about to forget them.'
+            : 'Reviews appear here after your first lesson.'}
+        </Text>
+        {loaded.learned > 0 && !practice ? (
+          <Button
+            title="Practise anyway"
+            onPress={() => router.replace({ pathname: '/lesson', params: { mode: 'review', practice: '1' } })}
+            style={styles.fullWidth}
+          />
+        ) : null}
         <Button title="Back" variant="secondary" onPress={() => router.back()} style={styles.fullWidth} />
       </SafeAreaView>
     );
   }
-  if (done) {
+
+  if (finished) {
     const streak = last?.streak.current ?? user?.streak.current ?? 0;
     const goal = user?.daily_goal ?? 0;
+    const next = completion?.next_lesson ?? null;
     return (
       <SafeAreaView style={styles.centered}>
-        <Mascot mood="happy" size={170} bounce />
+        <Mascot mood="happy" size={160} bounce />
         {metGoal ? (
           <>
             <View style={styles.bigStreak}>
@@ -102,28 +150,41 @@ export default function Lesson() {
           </>
         ) : (
           <>
-            <Text style={[type.title, { textAlign: 'center' }]}>Lesson done</Text>
+            <Text style={[type.title, { textAlign: 'center' }]}>
+              {lessonId ? (completion?.track_complete ? 'Track complete' : 'Lesson complete') : 'Review done'}
+            </Text>
             <Text style={[type.small, { textAlign: 'center', fontSize: 16 }]}>
               {last?.goal_met_today
                 ? 'Goal already met today. Extra reps make it stick.'
-                : `${Math.min(last?.today_count ?? 0, goal)} of ${goal} cards toward today's goal.`}
+                : `${Math.min(last?.today_count ?? 0, goal)} of ${goal} cards toward today’s goal.`}
             </Text>
           </>
         )}
         <View style={styles.statRow}>
           <Stat value={`${stats.correct}/${stats.answered}`} label="right first try" color={colors.jadeText} />
-          <Stat value={`${last?.today_count ?? 0}`} label="cards today" color={colors.gold} />
+          <Stat value={`${last?.today_count ?? user?.today_count ?? 0}`} label="cards today" color={colors.gold} />
         </View>
-        <Button title="Continue" onPress={() => router.back()} style={styles.fullWidth} />
+        {next ? (
+          <>
+            <Button
+              title="Next lesson"
+              onPress={() => router.replace({ pathname: '/lesson', params: { id: next.id } })}
+              style={styles.fullWidth}
+            />
+            <Text style={[type.small, { textAlign: 'center' }]}>Up next: {next.title}</Text>
+            <Button title="Done for now" variant="secondary" onPress={() => router.back()} style={{ alignSelf: 'stretch' }} />
+          </>
+        ) : (
+          <Button title="Continue" onPress={() => router.back()} style={styles.fullWidth} />
+        )}
       </SafeAreaView>
     );
   }
 
   const item = queue[idx];
-  const reason = item.isRetry ? { label: 'Try again', color: colors.rubyText } : REASON[item.card.reason];
 
   async function submit(answer: Answer) {
-    if (!userId) return;
+    if (!userId || item.type !== 'card') return;
     setSubmitting(true);
     try {
       const res = await api.review(userId, {
@@ -138,7 +199,7 @@ export default function Lesson() {
       if (res.just_met_goal) setMetGoal(true);
       if (!item.isRetry) {
         setStats((s) => ({ answered: s.answered + 1, correct: s.correct + (res.correct ? 1 : 0) }));
-        if (!res.correct) setQueue((q) => [...q!, { card: item.card, isRetry: true, key: `${item.card.id}:retry` }]);
+        if (!res.correct) setRetries((r) => [...r, { type: 'card', card: item.card, isRetry: true, key: `${item.card.id}:retry` }]);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -147,17 +208,33 @@ export default function Lesson() {
     }
   }
 
-  function next() {
+  async function next() {
     setResult(null);
-    setIdx((i) => i + 1);
-    startedAt.current = Date.now();
-    scroll.current?.scrollTo({ y: 0, animated: false });
+    if (idx + 1 < queue.length) {
+      setIdx(idx + 1);
+      startedAt.current = Date.now();
+      scroll.current?.scrollTo({ y: 0, animated: false });
+      return;
+    }
+    // Last step: record the lesson as finished (this unlocks the next one), then celebrate.
+    setFinishing(true);
+    try {
+      if (userId && lessonId) setCompletion(await api.completeLesson(userId, lessonId));
+      await refresh();
+      setFinished(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setFinishing(false);
+    }
   }
+
+  const tag = item.type === 'card' ? (item.isRetry ? { label: 'Try again', color: colors.rubyText } : REASON[item.card.reason]) : null;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel="Close lesson">
+        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityLabel="Close">
           <Icon name="close" size={26} color={colors.muted} strokeWidth={2.6} />
         </Pressable>
         <View style={{ flex: 1 }}>
@@ -169,14 +246,35 @@ export default function Lesson() {
         </View>
       </View>
 
-      <ScrollView ref={scroll} contentContainerStyle={[styles.body, result && { paddingBottom: 420 }]} keyboardShouldPersistTaps="handled">
-        <View style={[styles.reason, { borderColor: reason.color }]}>
-          <Text style={[styles.reasonText, { color: reason.color }]}>{reason.label}</Text>
-        </View>
-        <QuestionCard key={item.key} card={item.card} result={result} submitting={submitting} onSubmit={submit} />
+      <ScrollView
+        ref={scroll}
+        contentContainerStyle={[styles.body, result ? { paddingBottom: 420 } : item.type === 'teach' ? { paddingBottom: 140 } : null]}
+        keyboardShouldPersistTaps="handled"
+      >
+        {item.type === 'teach' ? (
+          <>
+            <Text style={styles.context}>{loaded.title}</Text>
+            <TeachScreen key={item.key} step={item.step} />
+          </>
+        ) : (
+          <>
+            {tag ? (
+              <View style={[styles.reason, { borderColor: tag.color }]}>
+                <Text style={[styles.reasonText, { color: tag.color }]}>{tag.label}</Text>
+              </View>
+            ) : null}
+            <QuestionCard key={item.key} card={item.card} result={result} submitting={submitting} onSubmit={submit} />
+          </>
+        )}
       </ScrollView>
 
-      {result ? (
+      {item.type === 'teach' ? (
+        <View style={[styles.footer, { paddingBottom: insets.bottom + space(4) }]}>
+          <Button title="Got it" loading={finishing} onPress={next} />
+        </View>
+      ) : null}
+
+      {item.type === 'card' && result ? (
         <ResultPanel
           result={result}
           answerText={formatCorrectAnswer(item.card, result)}
@@ -211,8 +309,20 @@ const styles = StyleSheet.create({
   topStreak: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   topStreakText: { fontFamily: fonts.displayBold, fontSize: 18, color: colors.gold },
   body: { padding: space(5), gap: space(4), paddingBottom: space(16) },
+  context: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.pink },
   reason: { alignSelf: 'flex-start', borderWidth: 2, borderRadius: 999, paddingHorizontal: space(3), paddingVertical: 3 },
   reasonText: { fontFamily: fonts.bodyBold, fontSize: 13 },
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: space(5),
+    paddingTop: space(3),
+    backgroundColor: colors.bg,
+    borderTopWidth: 2,
+    borderTopColor: colors.card,
+  },
   bigStreak: { flexDirection: 'row', alignItems: 'center', gap: space(1) },
   statRow: { flexDirection: 'row', gap: space(3), marginTop: space(3), alignSelf: 'stretch' },
   stat: {

@@ -12,6 +12,10 @@ export type IconName =
   | 'check'
   | 'hint'
   | 'bell'
+  | 'lock'
+  | 'review'
+  | 'plus'
+  | 'api'
   | 'estimation'
   | 'compute'
   | 'storage'
@@ -66,6 +70,23 @@ export function Icon({ name, size = 24, color = colors.text, strokeWidth = 2.2 }
     case 'bell':
       body = <Path {...s} d="M6 16v-5a6 6 0 1 1 12 0v5l1.5 2h-15L6 16zM10 20.5a2 2 0 0 0 4 0" />;
       break;
+    case 'lock':
+      body = (
+        <>
+          <Rect {...s} x={5} y={10.5} width={14} height={10} rx={2.5} />
+          <Path {...s} d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
+        </>
+      );
+      break;
+    case 'review':
+      body = <Path {...s} d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4.5h-4.5" />;
+      break;
+    case 'plus':
+      body = <Path {...s} d="M12 5v14M5 12h14" />;
+      break;
+    case 'api':
+      body = <Path {...s} d="M8.5 7 3.5 12l5 5M15.5 7l5 5-5 5M13.5 5l-3 14" />;
+      break;
     case 'estimation':
       body = (
         <>
@@ -116,11 +137,17 @@ export function Icon({ name, size = 24, color = colors.text, strokeWidth = 2.2 }
   );
 }
 
-export const SKILL_ICON: Record<string, IconName> = {
+const TRACK_ICONS: Record<string, IconName> = {
   estimation: 'estimation',
   compute: 'compute',
   storage: 'storage',
   caching: 'caching',
   async: 'async',
   consistency: 'consistency',
+  api: 'api',
 };
+
+/** Maps the icon name a track carries in the course content to an icon we have. */
+export function trackIcon(name: string): IconName {
+  return TRACK_ICONS[name] ?? 'compute';
+}

@@ -11,11 +11,11 @@ import { colors, fonts } from '../lib/theme';
 import { UserProvider, useUser } from '../lib/UserContext';
 
 function NotificationTapHandler() {
-  // Tapping a reminder opens straight into a lesson.
+  // Tapping a reminder opens the home screen, where the next lesson and any due reviews are waiting.
   useEffect(() => {
     if (Platform.OS === 'web') return;
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      if (response.notification.request.content.data?.type === 'reminder') router.push('/lesson');
+      if (response.notification.request.content.data?.type === 'reminder') router.navigate('/');
     });
     return () => sub.remove();
   }, []);
@@ -63,6 +63,7 @@ export default function RootLayout() {
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="lesson" options={{ headerShown: false, gestureEnabled: false, presentation: 'fullScreenModal' }} />
           <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+          <Stack.Screen name="tracks" options={{ title: 'Your tracks' }} />
         </Stack>
       </UserProvider>
     </SafeAreaProvider>

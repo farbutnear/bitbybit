@@ -8,8 +8,9 @@
 **System design, one bit at a time.** Duolingo-style daily practice for system design: five-minute drills, spaced repetition so you actually remember them, a daily streak, and a nudge when the streak is at risk.
 
 <p align="center">
-  <img src="docs/screenshots/onboarding.png" width="180" alt="Onboarding" />
-  <img src="docs/screenshots/home.png" width="180" alt="Home screen with streak and skill progress" />
+  <img src="docs/screenshots/onboarding.png" width="180" alt="Choosing tracks" />
+  <img src="docs/screenshots/teach.png" width="180" alt="A teaching screen" />
+  <img src="docs/screenshots/home.png" width="180" alt="Home screen with streak and the lesson path" />
   <img src="docs/screenshots/lesson.png" width="180" alt="Multiple-choice question" />
   <img src="docs/screenshots/wrong.png" width="180" alt="Wrong-answer panel" />
   <img src="docs/screenshots/feedback.png" width="180" alt="Right-answer panel with daily goal hit" />
@@ -17,11 +18,12 @@
 
 ## Features
 
-- **Bite-sized lessons** with three drill types: multiple choice (some with architecture diagrams), put-the-steps-in-order, and back-of-envelope estimates graded within a tolerance
-- **FSRS spaced repetition**, so each card comes back right before you'd forget it
+- **Choose what to learn:** system design is split into tracks (Foundations, Scaling, Storage, Caching, Async, Consistency, with APIs and networking next). Pick any, switch any time
+- **Lessons that teach, then test:** each lesson alternates a short teaching screen with a drill on that exact idea, laid out as a path you unlock lesson by lesson
+- **Three drill types so far:** multiple choice (some with architecture diagrams), put-the-steps-in-order, and back-of-envelope estimates graded within a tolerance
+- **FSRS spaced repetition** in a separate review queue, so each card you've learned comes back right before you'd forget it
 - **Daily streak** in your local timezone, with streak freezes
 - **Streak reminders** as local notifications (work in Expo Go) or server push via a backend worker
-- **Skill map** showing progress across estimation, compute, storage, caching, async processing and consistency
 
 - **Mobile app:** React Native + Expo SDK 58 (TypeScript, Expo Router), one codebase for iOS and Android
 - **Backend:** FastAPI + SQLAlchemy (SQLite for dev, Postgres in Docker), FSRS scheduling, a reminder worker that sends push through Expo's push service
@@ -29,7 +31,7 @@
 ```
  ┌──────────── phone ─────────────┐          ┌──────────── backend ────────────┐
  │ Expo app                       │  HTTPS   │ FastAPI                          │
- │  lessons, streak UI            │ ───────▶ │  /users /session /reviews        │
+ │  lessons, streak UI            │ ───────▶ │  /tracks /lessons /review        │
  │  local reminders (Expo Go)     │          │  FSRS scheduler, streak rules    │
  │  push token (dev/store build)  │          │          │                       │
  └────────────────────────────────┘          │          ▼                       │
@@ -86,7 +88,7 @@ Install **Expo Go** on your phone and scan the QR code. The app finds the backen
 **Tests**
 
 ```bash
-cd backend && pytest            # 33 tests: streaks, DST, grading, reminders, push batching, API flows
+cd backend && pytest            # 44 tests: course rules, streaks, DST, grading, reminders, push, API flows
 cd mobile && npm run typecheck
 ```
 
@@ -136,13 +138,15 @@ Brand assets in `mobile/assets/`: `icon.png` (app icon, single "b" mark), `andro
 
 ## Design notes
 
-**Spaced repetition (FSRS).** Each user×card pair stores FSRS state (stability, difficulty, due). Answers are auto-graded, so a wrong answer is `Again` and a right one is `Good`. FSRS's own learning steps are off: short-term repetition happens inside the lesson instead. A missed card is re-asked at the end, Duolingo style, and that retry counts toward the daily goal but doesn't touch the schedule. A lesson is: due reviews → new cards (max 5/day, in curriculum order) → reviews ahead of schedule as filler, so there's always something to practice.
+**Spaced repetition (FSRS).** Each user×card pair stores FSRS state (stability, difficulty, due). Answers are auto-graded, so a wrong answer is `Again` and a right one is `Good`. FSRS's own learning steps are off: short-term repetition happens inside the lesson instead. A missed card is re-asked at the end, Duolingo style, and that retry counts toward the daily goal but doesn't touch the schedule.
+
+**Learning and reviewing are separate.** New material only arrives through lessons: authored sequences of teaching screens and cards (`track → unit → lesson → step`). Within a track, lessons unlock in order and finished ones can be replayed; tracks themselves are never locked. Answering a card in a lesson puts it into FSRS, and the review queue (`GET /users/{id}/review`) serves whatever is due across every track. With nothing due, practice mode offers the cards due soonest, so the daily goal is always reachable. Lessons and reviews both count toward the goal.
 
 **Streaks.** A day counts when you hit your daily goal on your *local* calendar date. Streak state is only written when a goal is met; "is it still alive / at risk" is computed when read. That means there's no midnight job running across every timezone. You get one freeze to start and earn one per 7-day streak (max 2); a freeze covers one missed day. Moving to a timezone behind your old one never double-counts or breaks the streak.
 
 **Reminder worker.** Users with a push token have a `next_reminder_at` (UTC, indexed), computed from their local reminder time with `zoneinfo`, so it's DST-correct. Each tick claims due users with a conditional `UPDATE ... WHERE next_reminder_at = <old>`, so several workers can run without double-sending. The claim happens *before* the send, which makes reminders at-most-once: a missed nudge is better than a duplicate. Users who already met today's goal are skipped. Tokens Expo reports as `DeviceNotRegistered` are deleted.
 
-**Grading happens server-side.** The session payload never includes answers. Numeric answers are graded by ratio (`tolerance: 1.5` means within 1.5× either way), which suits back-of-envelope estimates.
+**Grading happens server-side.** Lesson and review payloads never include answers. Numeric answers are graded by ratio (`tolerance: 1.5` means within 1.5× either way), which suits back-of-envelope estimates.
 
 ## Project layout
 
@@ -150,24 +154,37 @@ Brand assets in `mobile/assets/`: `icon.png` (app icon, single "b" mark), `andro
 backend/
   app/
     main.py          HTTP routes
-    service.py       lesson building, reviews, skill progress, reminder tick
+    course.py        tracks, the lesson path, lesson contents and completion
+    service.py       answering cards, the review queue, reminder tick
     srs.py           FSRS wrapper + answer grading
     streaks.py       streak rules (pure functions)
     reminders.py     next reminder time (DST-aware), message text
     push.py          Expo push client (batched, error mapping)
     worker.py        reminder loop
-    content/cards.json   skills and cards
+    content/course.json  tracks, units, lessons and teaching screens
+    content/cards.json   the cards lessons refer to
   tests/
 mobile/
-  src/app/           screens: index (home), onboarding, lesson, settings
-  src/components/    question cards (mcq / order / numeric), UI kit
+  src/app/           screens: index (home path), onboarding, lesson, tracks, settings
+  src/components/    path view, track picker, teach screen, question cards, result panel, UI kit
   src/lib/           api client, notifications, user context, theme
 docker-compose.yml   Postgres + API + worker
 ```
 
 ## Adding content
 
-Edit `backend/app/content/cards.json` and restart the API; content is upserted on startup. Three card kinds:
+Content lives in two files in `backend/app/content/`, upserted when the API starts.
+
+`course.json` is the structure. A lesson is a list of steps, each either a teaching screen or a reference to a card:
+
+```jsonc
+{ "id": "caching-u1-l1", "title": "How caches work", "steps": [
+    { "teach": { "title": "Cache-aside", "body": "Up to 60 words, one idea.", "llama": "Optional one-liner." } },
+    { "card": "caching-cache-aside" }
+] }
+```
+
+A track with no units is listed in the app as "Coming next". `cards.json` holds the cards, each with the `track` it belongs to. Three card kinds:
 
 ```jsonc
 { "kind": "mcq",     "data": { "options": ["…"], "answer": 1, "diagram": "optional ASCII" } }
@@ -175,12 +192,12 @@ Edit `backend/app/content/cards.json` and restart the API; content is upserted o
 { "kind": "numeric", "data": { "answer": 2315, "tolerance": 1.5, "unit": "req/s", "hint": "optional" } }
 ```
 
-`pytest` checks that every card's answer grades as correct against itself.
+`pytest` checks that every card's answer grades as correct against itself, that every card is taught in exactly one lesson on its own track, and that each lesson opens with a teaching screen.
 
 ## Prototype shortcuts to fix before shipping
 
 - **No auth:** the user id in local storage is the only credential. Add sign-in (e.g. Sign in with Apple/Google) and authorize every `/users/{id}` route.
 - **Debug routes:** `/debug/*` is on by default. Set `BITBYBIT_ENABLE_DEBUG_ROUTES=false` in production.
-- **Schema:** `create_all` on startup instead of Alembic migrations.
+- **Schema:** no migrations. When `SCHEMA_VERSION` in `db.py` changes, the database is rebuilt on startup and all users and progress are lost (the app then sends you back through onboarding). Set `BITBYBIT_RESET_DB_ON_SCHEMA_CHANGE=false` and add Alembic before there is data worth keeping.
 - **Push receipts:** the worker reads Expo push *tickets* but doesn't poll *receipts*, where some delivery errors appear.
-- **Content:** 26 cards across 6 skills is enough to feel the loop, not a course.
+- **Content:** 25 cards in 12 lessons across 6 tracks is enough to feel the loop, not a course. The teaching screens are text only for now.
