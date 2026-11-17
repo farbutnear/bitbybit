@@ -1,0 +1,360 @@
+{
+  "tracks": [
+    {
+      "id": "foundations",
+      "title": "Foundations",
+      "blurb": "Requirements, estimates and the numbers every design starts from.",
+      "icon": "estimation",
+      "units": [
+        {
+          "id": "foundations-u1",
+          "title": "Thinking in numbers",
+          "lessons": [
+            {
+              "id": "foundations-u1-l1",
+              "title": "What a design must do",
+              "steps": [
+                {
+                  "teach": {
+                    "title": "What it does vs how well",
+                    "body": "Functional requirements say what a system does: post, follow, search. Non-functional requirements say how well: how fast, how available, at what scale. The second kind shapes the architecture, and it's written as numbers, like \"p99 under 200 ms\".",
+                    "llama": "Anyone can list features. Numbers are where designs get interesting."
+                  }
+                },
+                { "card": "estimation-nfr" },
+                {
+                  "teach": {
+                    "title": "Latency comes in sizes",
+                    "body": "Reading memory takes about 100 ns. A round trip inside one datacenter takes about 0.5 ms. Crossing an ocean and back takes about 150 ms. The exact figures drift; the 1,000× gaps between them don't.",
+                    "llama": "A network hop is a memory read that took the scenic route."
+                  }
+                },
+                { "card": "estimation-latency-dc" }
+              ]
+            },
+            {
+              "id": "foundations-u1-l2",
+              "title": "Back-of-envelope maths",
+              "steps": [
+                {
+                  "teach": {
+                    "title": "A day is about 100,000 seconds",
+                    "body": "There are 86,400 seconds in a day; round it to 100,000. Daily requests ÷ 100,000 gives average requests per second. An estimate only needs the right order of magnitude.",
+                    "llama": "If your estimate needs a calculator, it's too precise."
+                  }
+                },
+                { "card": "estimation-avg-qps" },
+                {
+                  "teach": {
+                    "title": "Plan for the peak",
+                    "body": "Traffic isn't flat. Peak load is often 2-3× the average, and the servers have to survive the peak. Servers needed = peak load ÷ what one server handles, plus spare for failures.",
+                    "llama": "Nobody gets paged for the average."
+                  }
+                },
+                { "card": "estimation-server-count" },
+                {
+                  "teach": {
+                    "title": "Storage adds up quietly",
+                    "body": "Items per day × size per item gives daily growth. Multiply by 365 for a year, then by the replication factor for real disk. Handy shortcut: 1 million items × 1 KB = 1 GB.",
+                    "llama": "Disks fill up the way inboxes do."
+                  }
+                },
+                { "card": "estimation-storage-year" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scaling",
+      "title": "Scaling",
+      "blurb": "Go from one server to many without falling over.",
+      "icon": "compute",
+      "units": [
+        {
+          "id": "scaling-u1",
+          "title": "From one server to many",
+          "lessons": [
+            {
+              "id": "scaling-u1-l1",
+              "title": "Up, then out",
+              "steps": [
+                {
+                  "teach": {
+                    "title": "Up or out",
+                    "body": "Scaling up means a bigger machine: simple, but there's a ceiling and it stays a single point of failure. Scaling out means more machines behind a load balancer. Teams usually scale up first, then out, and split the database last because it's the hardest part.",
+                    "llama": "Buying a bigger box is a strategy. Briefly."
+                  }
+                },
+                { "card": "compute-scaling-path" },
+                {
+                  "teach": {
+                    "title": "Keep servers forgetful",
+                    "body": "If a server keeps your session in its own memory, your next request has to reach that same server. Move that state to a shared store and every server becomes interchangeable: any one can serve any request, and losing one loses nothing.",
+                    "llama": "The best servers remember nothing about you. Don't take it personally."
+                  }
+                },
+                { "card": "compute-stateless" }
+              ]
+            },
+            {
+              "id": "scaling-u1-l2",
+              "title": "Load balancers",
+              "steps": [
+                {
+                  "teach": {
+                    "title": "What a load balancer can see",
+                    "body": "A layer 4 balancer sees only IP addresses and ports: fast, but blind to content. A layer 7 balancer reads the HTTP request, so it can route by path, header or cookie.",
+                    "llama": "Layer 4 delivers the envelope. Layer 7 opens it."
+                  }
+                },
+                { "card": "compute-l7" },
+                {
+                  "teach": {
+                    "title": "Round-robin is fair, not smart",
+                    "body": "Round-robin gives every server the same number of requests, whether or not it's coping. Least-connections sends new work to the least busy server. Health checks take out servers that stop answering properly.",
+                    "llama": "Treating everyone equally is lovely until one of them is on fire."
+                  }
+                },
+                { "card": "compute-slow-node" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "storage",
+      "title": "Storage",
+      "blurb": "Indexes, replicas, shards and picking the right database.",
+      "icon": "storage",
+      "units": [
+        {
+          "id": "storage-u1",
+          "title": "Where the data lives",
+          "lessons": [
+            {
+              "id": "storage-u1-l1",
+              "title": "Indexes and replicas",
+              "steps": [
+                {
+                  "teach": {
+                    "title": "An index is a sorted shortcut",
+                    "body": "An index keeps chosen columns sorted so the database can jump to matching rows instead of scanning the table. A multi-column index is sorted by its first column, then by the second within it. So put the column you filter on first, then the one you sort by.",
+                    "llama": "Without an index, the database reads everything. It won't complain. It'll just be slow."
+                  }
+                },
+                { "card": "storage-composite-index" },
+                {
+                  "teach": {
+                    "title": "Replicas run slightly behind",
+                    "body": "Read replicas copy the leader's writes, usually asynchronously, so they can be a moment out of date. A read sent to a replica right after a write may miss it. That gap is called replication lag.",
+                    "llama": "A replica is the leader, a few milliseconds ago."
+                  }
+                },
+                { "card": "storage-replica-lag" }
+              ]
+            },
+            {
+              "id": "storage-u1-l2",
+              "title": "Splitting data",
+              "steps": [
+                {
+                  "teach": {
+                    "title": "Sharding by key",
+                    "body": "Sharding splits one dataset across several databases by a key. The simplest rule is hash(key) % N, but changing N sends most keys to a different shard. Consistent hashing moves only about 1/N of the keys when a node is added.",
+                    "llama": "Modulo is easy right up until you add a server."
+                  }
+                },
+                { "card": "storage-modulo-resharding" },
+                {
+                  "teach": {
+                    "title": "Pick the store for the query",
+                    "body": "Relational databases give you joins and multi-row transactions. Wide-column stores like Cassandra give those up for huge write throughput, as long as each query reads one partition by its key.",
+                    "llama": "Every database is fast at the thing it was built for."
+                  }
+                },
+                { "card": "storage-fit" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "caching",
+      "title": "Caching",
+      "blurb": "Make reads fast, and survive the day the cache empties.",
+      "icon": "caching",
+      "units": [
+        {
+          "id": "caching-u1",
+          "title": "Make it fast",
+          "lessons": [
+            {
+              "id": "caching-u1-l1",
+              "title": "How caches work",
+              "steps": [
+                {
+                  "teach": {
+                    "title": "Cache-aside",
+                    "body": "A cache keeps answers in memory so the database isn't asked twice. In cache-aside, the application runs the show: look in the cache first; on a miss, read the database, then put the result in the cache.",
+                    "llama": "Ten people asked the same question. The database answered ten times. Embarrassing."
+                  }
+                },
+                { "card": "caching-cache-aside" },
+                {
+                  "teach": {
+                    "title": "Misses set the pace",
+                    "body": "Average latency = hit ratio × cache time + miss ratio × miss time. A miss pays for the cache lookup and the database read. Even a few slow misses dominate the average.",
+                    "llama": "A 90% hit ratio sounds great until you meet the other 10%."
+                  }
+                },
+                { "card": "caching-avg-latency" }
+              ]
+            },
+            {
+              "id": "caching-u1-l2",
+              "title": "Stampedes and CDNs",
+              "steps": [
+                {
+                  "teach": {
+                    "title": "The stampede",
+                    "body": "When a popular key expires, every request misses at the same moment and they all hit the database together. The fix is to let one request rebuild the value while the rest wait or take the stale copy.",
+                    "llama": "One request can do the work. The other 9,999 can queue politely."
+                  }
+                },
+                { "card": "caching-stampede" },
+                {
+                  "teach": {
+                    "title": "Caching near the user",
+                    "body": "A CDN is a cache spread around the world. Static files are served from a location near each user, so they travel a short distance and most requests never reach your servers.",
+                    "llama": "The fastest request is the one your servers never hear about."
+                  }
+                },
+                { "card": "caching-cdn" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "async",
+      "title": "Async",
+      "blurb": "Queues, events and doing slow work in the background.",
+      "icon": "async",
+      "units": [
+        {
+          "id": "async-u1",
+          "title": "Do it later",
+          "lessons": [
+            {
+              "id": "async-u1-l1",
+              "title": "Queues and topics",
+              "steps": [
+                {
+                  "teach": {
+                    "title": "Answer now, work later",
+                    "body": "Some work is too slow to do while the user waits. Put a message on a queue, reply straight away, and let workers process it at their own pace. A traffic spike becomes a longer queue instead of timeouts.",
+                    "llama": "\"We're on it\" is a perfectly good response."
+                  }
+                },
+                { "card": "async-queue-why" },
+                {
+                  "teach": {
+                    "title": "One reader or every reader",
+                    "body": "In a work queue, consumers compete: each message goes to exactly one of them. In publish/subscribe, every subscriber gets its own copy of every message.",
+                    "llama": "A queue is a to-do list. A topic is a group chat."
+                  }
+                },
+                { "card": "async-pubsub" }
+              ]
+            },
+            {
+              "id": "async-u1-l2",
+              "title": "Duplicates and the outbox",
+              "steps": [
+                {
+                  "teach": {
+                    "title": "Expect duplicates",
+                    "body": "Most queues promise at-least-once delivery: if an acknowledgement gets lost, the message is sent again. So consumers must be idempotent: handling the same message twice has the same effect as handling it once.",
+                    "llama": "At-least-once means twice, on the worst possible day."
+                  }
+                },
+                { "card": "async-idempotency" },
+                {
+                  "teach": {
+                    "title": "Two writes, one transaction",
+                    "body": "You can't atomically save to a database and publish to a broker. The outbox pattern saves the event in the database in the same transaction as the data. A separate relay publishes it afterwards.",
+                    "llama": "Write it down first. Announce it second."
+                  }
+                },
+                { "card": "async-outbox" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "consistency",
+      "title": "Consistency",
+      "blurb": "What replicas agree on, and what it costs to make them.",
+      "icon": "consistency",
+      "units": [
+        {
+          "id": "consistency-u1",
+          "title": "Agreeing on the truth",
+          "lessons": [
+            {
+              "id": "consistency-u1-l1",
+              "title": "CAP in practice",
+              "steps": [
+                {
+                  "teach": {
+                    "title": "When the network splits",
+                    "body": "A partition cuts replicas off from each other. Each side then has to choose: keep answering and risk the copies disagreeing (availability), or refuse requests until the copies can agree (consistency). That choice is the CAP theorem.",
+                    "llama": "You don't choose whether partitions happen. Only what you do about them."
+                  }
+                },
+                { "card": "consistency-cap" },
+                {
+                  "teach": {
+                    "title": "Spend consistency where it matters",
+                    "body": "Strong consistency costs latency and availability. Use it where a stale answer does real harm, like money or bookings. Counters and feeds can be a little out of date.",
+                    "llama": "Nobody sues over a like count."
+                  }
+                },
+                { "card": "consistency-which-strong" }
+              ]
+            },
+            {
+              "id": "consistency-u1-l2",
+              "title": "Quorums",
+              "steps": [
+                {
+                  "teach": {
+                    "title": "Overlap is the trick",
+                    "body": "With N replicas, a write waits for W acknowledgements and a read asks R replicas. If R + W > N, every read set shares at least one replica with every write set, so a read always includes the latest acknowledged write.",
+                    "llama": "Ask enough replicas and at least one of them was paying attention."
+                  }
+                },
+                { "card": "consistency-quorum-why" },
+                { "card": "consistency-quorum-r" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "apis",
+      "title": "APIs and networking",
+      "blurb": "REST, gRPC, WebSockets, rate limits and gateways.",
+      "icon": "api",
+      "units": []
+    }
+  ]
+}

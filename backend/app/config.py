@@ -8,9 +8,8 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./bitbybit.db"
 
-    # Lesson composition
+    # How many cards a review session holds at most
     session_size: int = 10
-    new_cards_per_day: int = 5
 
     # Defaults for new users
     default_daily_goal: int = 5
@@ -28,6 +27,10 @@ class Settings(BaseSettings):
     # Reminder worker
     worker_interval_seconds: int = 60
     worker_batch_size: int = 500
+
+    # No migrations yet: when the schema version changes, rebuild the database on startup.
+    # Set to false once there is data worth keeping.
+    reset_db_on_schema_change: bool = True
 
     # Exposes /debug/* routes (test push, run reminder tick). Turn off in production.
     enable_debug_routes: bool = True

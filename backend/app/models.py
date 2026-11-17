@@ -31,22 +31,72 @@ class User(Base):
     # worker's "who is due" query is a range scan, not a full table scan.
     next_reminder_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True, index=True)
 
+    # The track whose path the home screen shows. The user's full selection is in user_tracks.
+    active_track_id: Mapped[str | None] = mapped_column(ForeignKey("tracks.id"), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
 
-class Skill(Base):
-    __tablename__ = "skills"
+class SchemaMeta(Base):
+    """One row holding the schema version, so startup can tell when the tables are out of date."""
+
+    __tablename__ = "schema_meta"
+
+    key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    value: Mapped[str] = mapped_column(String(40))
+
+
+# ---------- course structure: track -> unit -> lesson -> step ----------
+
+class Track(Base):
+    """A sub-area of system design the user can choose to learn, e.g. Caching."""
+
+    __tablename__ = "tracks"
 
     id: Mapped[str] = mapped_column(String(40), primary_key=True)
     title: Mapped[str] = mapped_column(String(120))
+    blurb: Mapped[str] = mapped_column(Text)
+    icon: Mapped[str] = mapped_column(String(40))
     position: Mapped[int] = mapped_column(Integer)
+
+
+class Unit(Base):
+    __tablename__ = "units"
+
+    id: Mapped[str] = mapped_column(String(60), primary_key=True)
+    track_id: Mapped[str] = mapped_column(ForeignKey("tracks.id"), index=True)
+    title: Mapped[str] = mapped_column(String(120))
+    position: Mapped[int] = mapped_column(Integer)
+
+
+class Lesson(Base):
+    __tablename__ = "lessons"
+
+    id: Mapped[str] = mapped_column(String(60), primary_key=True)
+    unit_id: Mapped[str] = mapped_column(ForeignKey("units.id"))
+    track_id: Mapped[str] = mapped_column(ForeignKey("tracks.id"), index=True)
+    title: Mapped[str] = mapped_column(String(120))
+    position: Mapped[int] = mapped_column(Integer)  # order within the whole track, across units
+
+
+class Step(Base):
+    """One screen of a lesson: either a teaching screen or a card to answer."""
+
+    __tablename__ = "steps"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    lesson_id: Mapped[str] = mapped_column(ForeignKey("lessons.id"), index=True)
+    position: Mapped[int] = mapped_column(Integer)
+    kind: Mapped[str] = mapped_column(String(16))  # "teach" | "card"
+    card_id: Mapped[str | None] = mapped_column(ForeignKey("cards.id"), nullable=True)
+    data: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # teach content
 
 
 class Card(Base):
     __tablename__ = "cards"
 
     id: Mapped[str] = mapped_column(String(60), primary_key=True)
-    skill_id: Mapped[str] = mapped_column(ForeignKey("skills.id"))
+    track_id: Mapped[str] = mapped_column(ForeignKey("tracks.id"))
     position: Mapped[int] = mapped_column(Integer)
     kind: Mapped[str] = mapped_column(String(16))  # "mcq" | "order" | "numeric"
     prompt: Mapped[str] = mapped_column(Text)
@@ -94,3 +144,22 @@ class PushToken(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     platform: Mapped[str] = mapped_column(String(16))
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
+
+
+class UserTrack(Base):
+    """A track the user chose to learn."""
+
+    __tablename__ = "user_tracks"
+
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    track_id: Mapped[str] = mapped_column(ForeignKey("tracks.id"), primary_key=True)
+
+
+class UserLesson(Base):
+    """A lesson the user has finished. Finishing unlocks the next lesson on the track."""
+
+    __tablename__ = "user_lessons"
+
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    lesson_id: Mapped[str] = mapped_column(ForeignKey("lessons.id"), primary_key=True)
+    completed_at: Mapped[datetime] = mapped_column(UTCDateTime)

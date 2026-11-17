@@ -38,4 +38,6 @@ def test_messages():
     title, body = reminder_message(streak=12, due_count=7, goal=5, done_today=4)
     assert "12-day" in title and body.startswith("1 more card ")
     title, body = reminder_message(streak=0, due_count=1, goal=5, done_today=0)
-    assert "1 card ready" in body
+    assert "1 card due" in body
+    _, body = reminder_message(streak=0, due_count=0, goal=5, done_today=0)
+    assert "next lesson" in body

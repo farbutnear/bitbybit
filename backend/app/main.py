@@ -8,10 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
-from . import service
+from . import course, service
 from .config import settings
-from .db import Base, SessionLocal, engine, get_db, utcnow
-from .models import Card, PushToken, User
+from .db import SessionLocal, get_db, init_db, utcnow
+from .models import Card, Lesson, PushToken, User
 from .push import Sender, is_expo_token, send_expo_push
 from .seed import seed_content
 from .srs import AnswerError
@@ -21,7 +21,7 @@ from .srs import AnswerError
 async def lifespan(_app: FastAPI):
     # Prototype convenience: create tables and load content on startup.
     # A real deployment would use Alembic migrations and a separate seed step.
-    Base.metadata.create_all(engine)
+    init_db(reset_on_change=settings.reset_db_on_schema_change)
     with SessionLocal() as db:
         seed_content(db)
     yield
@@ -60,6 +60,7 @@ class UserCreate(BaseModel):
     daily_goal: int = Field(default=settings.default_daily_goal, ge=1, le=50)
     reminder_hour: int = Field(default=settings.default_reminder_hour, ge=0, le=23)
     reminder_minute: int = Field(default=0, ge=0, le=59)
+    track_ids: list[str] | None = None  # defaults to the first track with content
 
     _tz = field_validator("timezone")(_check_tz)
 
@@ -75,6 +76,11 @@ class UserUpdate(BaseModel):
     @classmethod
     def _tz(cls, v: str | None) -> str | None:
         return None if v is None else _check_tz(v)
+
+
+class TracksIn(BaseModel):
+    track_ids: list[str]
+    active_track_id: str | None = None
 
 
 class ReviewIn(BaseModel):
@@ -98,6 +104,13 @@ def _user(db: Session, user_id: str) -> User:
     return user
 
 
+def _lesson(db: Session, lesson_id: str) -> Lesson:
+    lesson = db.get(Lesson, lesson_id)
+    if lesson is None:
+        raise HTTPException(404, "lesson not found")
+    return lesson
+
+
 # ---------- routes ----------
 
 @app.get("/health")
@@ -117,6 +130,11 @@ def create_user(body: UserCreate, db: DB, now: Now) -> dict:
     )
     db.add(user)
     db.flush()
+    try:
+        course.set_tracks(db, user, body.track_ids or course.default_track_ids(db))
+    except course.CourseError as exc:
+        db.rollback()
+        raise HTTPException(422, str(exc)) from None
     service.refresh_reminder(db, user, now)
     db.commit()
     return service.user_summary(db, user, now)
@@ -137,9 +155,60 @@ def update_user(user_id: str, body: UserUpdate, db: DB, now: Now) -> dict:
     return service.user_summary(db, user, now)
 
 
-@app.get("/users/{user_id}/session")
-def get_session(user_id: str, db: DB, now: Now) -> dict:
-    return service.build_session(db, _user(db, user_id), now)
+# ----- course: tracks, path, lessons -----
+
+@app.get("/tracks")
+def get_tracks(db: DB) -> list[dict]:
+    """The catalogue, for the track picker shown before an account exists."""
+    return course.list_tracks(db)
+
+
+@app.get("/users/{user_id}/tracks")
+def get_user_tracks(user_id: str, db: DB) -> list[dict]:
+    return course.list_tracks(db, _user(db, user_id))
+
+
+@app.put("/users/{user_id}/tracks")
+def put_user_tracks(user_id: str, body: TracksIn, db: DB, now: Now) -> dict:
+    user = _user(db, user_id)
+    try:
+        course.set_tracks(db, user, body.track_ids, body.active_track_id)
+    except course.CourseError as exc:
+        db.rollback()
+        raise HTTPException(422, str(exc)) from None
+    db.commit()
+    return service.user_summary(db, user, now)
+
+
+@app.get("/users/{user_id}/tracks/{track_id}/path")
+def get_path(user_id: str, track_id: str, db: DB) -> dict:
+    try:
+        return course.track_path(db, _user(db, user_id), track_id)
+    except course.CourseError as exc:
+        raise HTTPException(404, str(exc)) from None
+
+
+@app.get("/users/{user_id}/lessons/{lesson_id}")
+def get_lesson(user_id: str, lesson_id: str, db: DB) -> dict:
+    try:
+        return course.lesson_payload(db, _user(db, user_id), _lesson(db, lesson_id))
+    except course.CourseError as exc:
+        raise HTTPException(403, str(exc)) from None
+
+
+@app.post("/users/{user_id}/lessons/{lesson_id}/complete")
+def post_lesson_complete(user_id: str, lesson_id: str, db: DB, now: Now) -> dict:
+    try:
+        return course.complete_lesson(db, _user(db, user_id), _lesson(db, lesson_id), now)
+    except course.CourseError as exc:
+        raise HTTPException(409, str(exc)) from None
+
+
+# ----- review (spaced repetition) -----
+
+@app.get("/users/{user_id}/review")
+def get_review(user_id: str, db: DB, now: Now, practice: bool = False) -> dict:
+    return service.build_review(db, _user(db, user_id), now, practice)
 
 
 @app.post("/users/{user_id}/reviews")
@@ -152,11 +221,6 @@ def post_review(user_id: str, body: ReviewIn, db: DB, now: Now) -> dict:
         return service.submit_review(db, user, card, body.answer, now, body.is_retry, body.duration_ms)
     except AnswerError as exc:
         raise HTTPException(422, str(exc)) from None
-
-
-@app.get("/users/{user_id}/skills")
-def get_skills(user_id: str, db: DB) -> list[dict]:
-    return service.skill_progress(db, _user(db, user_id))
 
 
 @app.post("/users/{user_id}/push-tokens", status_code=201)

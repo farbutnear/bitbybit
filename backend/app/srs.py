@@ -65,7 +65,7 @@ def public_payload(card: Card, rng: random.Random | None = None) -> dict:
     """Card as sent to the app: everything needed to render it, nothing that gives away the answer."""
     rng = rng or random.Random()
     d = card.data
-    base = {"id": card.id, "skill_id": card.skill_id, "kind": card.kind, "prompt": card.prompt}
+    base = {"id": card.id, "track_id": card.track_id, "kind": card.kind, "prompt": card.prompt}
     if card.kind == "mcq":
         return base | {"options": d["options"], "diagram": d.get("diagram")}
     if card.kind == "order":

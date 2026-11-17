@@ -8,7 +8,7 @@ import logging
 import time
 
 from .config import settings
-from .db import Base, SessionLocal, engine, utcnow
+from .db import SessionLocal, init_db, utcnow
 from .push import send_expo_push
 from .service import run_reminder_tick
 
@@ -17,7 +17,7 @@ log = logging.getLogger("bitbybit.worker")
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    Base.metadata.create_all(engine)
+    init_db(reset_on_change=settings.reset_db_on_schema_change)
     log.info("reminder worker started, interval=%ss", settings.worker_interval_seconds)
     while True:
         started = time.monotonic()

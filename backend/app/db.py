@@ -69,3 +69,47 @@ def get_db() -> Iterator[Session]:
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+# Bump when the tables change. There are no migrations yet (prototype), so a mismatch
+# rebuilds the database from scratch; content is reseeded and the app sends users whose
+# account vanished back through onboarding.
+SCHEMA_VERSION = 2
+
+
+def init_db(target: Engine | None = None, reset_on_change: bool = True) -> bool:
+    """Create tables, rebuilding them if they were made by an older schema. Returns True if rebuilt."""
+    import logging
+
+    from sqlalchemy import MetaData, inspect, select
+
+    from .models import SchemaMeta  # imported here: models imports this module
+
+    eng = target or engine
+    existing = inspect(eng).get_table_names()
+    rebuilt = False
+    if existing:
+        current = None
+        if SchemaMeta.__tablename__ in existing:
+            with eng.connect() as conn:
+                current = conn.execute(select(SchemaMeta.value).where(SchemaMeta.key == "version")).scalar()
+        if current != str(SCHEMA_VERSION):
+            if not reset_on_change:
+                raise RuntimeError(
+                    f"Database schema is version {current}, the code expects {SCHEMA_VERSION}. "
+                    "Migrate it, or set BITBYBIT_RESET_DB_ON_SCHEMA_CHANGE=true to rebuild it."
+                )
+            logging.getLogger("bitbybit.db").warning(
+                "Schema changed (%s -> %s): rebuilding the database. Existing users and progress are removed.",
+                current,
+                SCHEMA_VERSION,
+            )
+            old = MetaData()
+            old.reflect(eng)
+            old.drop_all(eng)
+            rebuilt = True
+    Base.metadata.create_all(eng)
+    with sessionmaker(bind=eng)() as db:
+        db.merge(SchemaMeta(key="version", value=str(SCHEMA_VERSION)))
+        db.commit()
+    return rebuilt

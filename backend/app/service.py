@@ -9,13 +9,10 @@ from sqlalchemy.orm import Session
 
 from . import srs
 from .config import settings
-from .models import Card, PushToken, Review, Skill, User, UserCard
+from .models import Card, PushToken, Review, Track, User, UserCard, UserTrack
 from .push import PushMessage, Sender
 from .reminders import next_reminder_at, reminder_message
 from .streaks import StreakState, apply_goal_met, displayed_streak, is_at_risk, local_today
-
-MASTERED_STABILITY_DAYS = 21.0  # a card you'd still recall after ~3 weeks counts as "strong"
-
 
 # ---------- streak helpers ----------
 
@@ -48,6 +45,10 @@ def due_count(db: Session, user: User, now: datetime) -> int:
     return db.scalar(
         select(func.count()).select_from(UserCard).where(UserCard.user_id == user.id, UserCard.due <= now)
     ) or 0
+
+
+def learned_count(db: Session, user: User) -> int:
+    return db.scalar(select(func.count()).select_from(UserCard).where(UserCard.user_id == user.id)) or 0
 
 
 def has_push(db: Session, user: User) -> bool:
@@ -87,65 +88,58 @@ def user_summary(db: Session, user: User, now: datetime) -> dict:
         "today_count": today_count(db, user, now),
         "goal_met_today": user.last_goal_date == today,
         "due_count": due_count(db, user, now),
+        "learned_count": learned_count(db, user),
         "has_push": has_push(db, user),
+        "active_track_id": user.active_track_id,
+        "track_ids": list(
+            db.scalars(
+                select(UserTrack.track_id)
+                .join(Track, Track.id == UserTrack.track_id)
+                .where(UserTrack.user_id == user.id)
+                .order_by(Track.position)
+            )
+        ),
     }
 
 
-# ---------- lessons ----------
+# ---------- review (spaced repetition) ----------
 
-def build_session(db: Session, user: User, now: datetime, rng: random.Random | None = None) -> dict:
-    """Due reviews first, then new cards (capped per day), then reviews ahead of schedule.
+def build_review(db: Session, user: User, now: datetime, practice: bool = False, rng: random.Random | None = None) -> dict:
+    """Cards the user has already met in a lesson and that FSRS says are due.
 
-    The "ahead" fill means there is always something to practice, so a user can always
-    meet their daily goal even when nothing is due.
+    New material only ever arrives through lessons (see course.py). With practice=True and
+    nothing due, the cards due soonest are offered instead, so there is always a way to
+    reach the daily goal.
     """
     size = settings.session_size
-    today = local_today(user.timezone, now)
-
-    due_ids = list(
-        db.scalars(
-            select(UserCard.card_id)
+    rows = list(
+        db.execute(
+            select(UserCard.card_id, UserCard.due)
             .where(UserCard.user_id == user.id, UserCard.due <= now)
             .order_by(UserCard.due)
             .limit(size)
         )
     )
-
-    new_today = db.scalar(
-        select(func.count())
-        .select_from(UserCard)
-        .where(UserCard.user_id == user.id, UserCard.first_seen_date == today)
-    ) or 0
-    new_slots = max(0, min(size - len(due_ids), settings.new_cards_per_day - new_today))
-    seen = select(UserCard.card_id).where(UserCard.user_id == user.id)
-    new_ids = list(
-        db.scalars(
-            select(Card.id)
-            .join(Skill, Skill.id == Card.skill_id)
-            .where(Card.id.not_in(seen))
-            .order_by(Skill.position, Card.position)
-            .limit(new_slots)
+    reason = "due"
+    if not rows and practice:
+        rows = list(
+            db.execute(
+                select(UserCard.card_id, UserCard.due)
+                .where(UserCard.user_id == user.id)
+                .order_by(UserCard.due)
+                .limit(size)
+            )
         )
-    ) if new_slots else []
-
-    fill = size - len(due_ids) - len(new_ids)
-    ahead_ids = list(
-        db.scalars(
-            select(UserCard.card_id)
-            .where(UserCard.user_id == user.id, UserCard.due > now)
-            .order_by(UserCard.due)
-            .limit(fill)
-        )
-    ) if fill > 0 else []
-
-    reasons = {**{i: "ahead" for i in ahead_ids}, **{i: "new" for i in new_ids}, **{i: "due" for i in due_ids}}
-    ordered = due_ids + new_ids + ahead_ids
-    cards = {c.id: c for c in db.scalars(select(Card).where(Card.id.in_(ordered)))}
+        reason = "ahead"
+    ids = [r[0] for r in rows]
+    cards = {c.id: c for c in db.scalars(select(Card).where(Card.id.in_(ids)))}
     rng = rng or random.Random()
+    next_due = db.scalar(select(func.min(UserCard.due)).where(UserCard.user_id == user.id, UserCard.due > now))
     return {
-        "cards": [srs.public_payload(cards[i], rng) | {"reason": reasons[i]} for i in ordered],
-        "due_count": len(due_ids),
-        "new_count": len(new_ids),
+        "cards": [srs.public_payload(cards[i], rng) | {"reason": reason} for i in ids],
+        "due_count": due_count(db, user, now),
+        "learned_count": learned_count(db, user),
+        "next_due": next_due,
     }
 
 
@@ -212,39 +206,6 @@ def submit_review(
             "at_risk": is_at_risk(s, today),
         },
     }
-
-
-def skill_progress(db: Session, user: User) -> list[dict]:
-    skills = list(db.scalars(select(Skill).order_by(Skill.position)))
-    totals = dict(db.execute(select(Card.skill_id, func.count()).group_by(Card.skill_id)).all())
-    rows = db.execute(
-        select(Card.skill_id, UserCard.stability)
-        .join(Card, Card.id == UserCard.card_id)
-        .where(UserCard.user_id == user.id)
-    ).all()
-    seen: dict[str, int] = {}
-    strength: dict[str, float] = {}
-    strong: dict[str, int] = {}
-    for skill_id, stability in rows:
-        seen[skill_id] = seen.get(skill_id, 0) + 1
-        strength[skill_id] = strength.get(skill_id, 0.0) + min(stability / MASTERED_STABILITY_DAYS, 1.0)
-        if stability >= MASTERED_STABILITY_DAYS:
-            strong[skill_id] = strong.get(skill_id, 0) + 1
-    out = []
-    for sk in skills:
-        total = totals.get(sk.id, 0)
-        out.append(
-            {
-                "id": sk.id,
-                "title": sk.title,
-                "total": total,
-                "seen": seen.get(sk.id, 0),
-                "strong": strong.get(sk.id, 0),
-                # 0..1: average memory strength across all cards, unseen cards count as 0
-                "mastery": round(strength.get(sk.id, 0.0) / total, 3) if total else 0.0,
-            }
-        )
-    return out
 
 
 # ---------- reminders ----------

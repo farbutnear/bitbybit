@@ -1,40 +1,45 @@
 {
-  "skills": [
-    { "id": "estimation", "title": "Requirements & estimation" },
-    { "id": "compute", "title": "Scaling compute" },
-    { "id": "storage", "title": "Data storage" },
-    { "id": "caching", "title": "Caching & CDNs" },
-    { "id": "async", "title": "Async processing" },
-    { "id": "consistency", "title": "Consistency & trade-offs" }
-  ],
   "cards": [
     {
       "id": "estimation-avg-qps",
-      "skill": "estimation",
+      "track": "foundations",
       "kind": "numeric",
       "prompt": "An app has 10 million daily active users. Each makes about 20 requests per day. What is the average request rate?",
-      "data": { "answer": 2315, "tolerance": 1.5, "unit": "requests/s", "hint": "A day is about 86,400 seconds (call it 10^5)." },
+      "data": {
+        "answer": 2315,
+        "tolerance": 1.5,
+        "unit": "requests/s",
+        "hint": "A day is about 86,400 seconds (call it 10^5)."
+      },
       "explanation": "10M × 20 = 200M requests/day. 200M ÷ 86,400 s ≈ 2,300 req/s. Rounding a day to 10^5 s gives 2,000, which is close enough for capacity planning."
     },
     {
       "id": "estimation-server-count",
-      "skill": "estimation",
+      "track": "foundations",
       "kind": "numeric",
       "prompt": "Average load is 2,000 req/s and peak is 3× average. One server handles 500 req/s. What is the minimum number of servers to survive peak, with no headroom?",
-      "data": { "answer": 12, "tolerance": 1.0, "unit": "servers" },
+      "data": {
+        "answer": 12,
+        "tolerance": 1.0,
+        "unit": "servers"
+      },
       "explanation": "Peak = 3 × 2,000 = 6,000 req/s. 6,000 ÷ 500 = 12 servers. In practice you add headroom (often 30-50%) and N+1 for a failed node, so you'd provision more."
     },
     {
       "id": "estimation-storage-year",
-      "skill": "estimation",
+      "track": "foundations",
       "kind": "numeric",
       "prompt": "Users create 50 million posts per day at about 1 KB each (text and metadata only). How much storage does one year of posts need?",
-      "data": { "answer": 18.25, "tolerance": 1.5, "unit": "TB" },
+      "data": {
+        "answer": 18.25,
+        "tolerance": 1.5,
+        "unit": "TB"
+      },
       "explanation": "50M × 1 KB = 50 GB/day. × 365 ≈ 18 TB/year, before replication. With 3× replication that's roughly 55 TB of raw disk."
     },
     {
       "id": "estimation-nfr",
-      "skill": "estimation",
+      "track": "foundations",
       "kind": "mcq",
       "prompt": "Which of these is a non-functional requirement?",
       "data": {
@@ -50,16 +55,23 @@
     },
     {
       "id": "estimation-latency-dc",
-      "skill": "estimation",
+      "track": "foundations",
       "kind": "mcq",
       "prompt": "Using the classic latency numbers, roughly how long is a network round trip within the same datacenter?",
-      "data": { "options": ["~0.5 ns", "~100 ns", "~0.5 ms", "~150 ms"], "answer": 2 },
+      "data": {
+        "options": [
+          "~0.5 ns",
+          "~100 ns",
+          "~0.5 ms",
+          "~150 ms"
+        ],
+        "answer": 2
+      },
       "explanation": "Classic figures: L1 cache reference ≈ 0.5 ns, main memory ≈ 100 ns, same-datacenter round trip ≈ 0.5 ms, California ↔ Netherlands round trip ≈ 150 ms. Modern networks can be faster, but the orders of magnitude are what matter: a network hop costs ~1000× a memory read."
     },
-
     {
       "id": "compute-stateless",
-      "skill": "compute",
+      "track": "scaling",
       "kind": "mcq",
       "prompt": "Why do app servers usually need to be stateless before you scale them horizontally behind a load balancer?",
       "data": {
@@ -75,7 +87,7 @@
     },
     {
       "id": "compute-slow-node",
-      "skill": "compute",
+      "track": "scaling",
       "kind": "mcq",
       "prompt": "The load balancer uses round-robin. What happens to app-3, and what fixes it?",
       "data": {
@@ -92,7 +104,7 @@
     },
     {
       "id": "compute-scaling-path",
-      "skill": "compute",
+      "track": "scaling",
       "kind": "order",
       "prompt": "Put these in the typical order you'd apply them as a single-server web app grows.",
       "data": {
@@ -108,7 +120,7 @@
     },
     {
       "id": "compute-l7",
-      "skill": "compute",
+      "track": "scaling",
       "kind": "mcq",
       "prompt": "You want /api/* to go to one backend pool and /static/* to another. Which load balancer can do that?",
       "data": {
@@ -122,21 +134,25 @@
       },
       "explanation": "Routing by URL path requires reading the HTTP request, which only a Layer 7 load balancer does. Layer 4 sees IPs and ports only. It's cheaper and faster, but blind to paths, headers and cookies."
     },
-
     {
       "id": "storage-composite-index",
-      "skill": "storage",
+      "track": "storage",
       "kind": "mcq",
       "prompt": "Hot query: SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC LIMIT 20. Which index serves it best?",
       "data": {
-        "options": ["(created_at)", "(user_id)", "(user_id, created_at)", "(created_at, user_id)"],
+        "options": [
+          "(created_at)",
+          "(user_id)",
+          "(user_id, created_at)",
+          "(created_at, user_id)"
+        ],
         "answer": 2
       },
       "explanation": "With (user_id, created_at), the DB jumps to that user's entries, which are already sorted by time, and reads 20 from the end. (user_id) alone finds the rows but must sort them. With created_at first, it has to scan everyone's recent orders to find this user's."
     },
     {
       "id": "storage-replica-lag",
-      "skill": "storage",
+      "track": "storage",
       "kind": "mcq",
       "prompt": "Reads go to async read replicas. A user edits their profile, refreshes, and sees the old version. What's happening, and what's a targeted fix?",
       "data": {
@@ -152,15 +168,19 @@
     },
     {
       "id": "storage-modulo-resharding",
-      "skill": "storage",
+      "track": "storage",
       "kind": "numeric",
       "prompt": "Keys are placed with shard = hash(key) % N. You go from N = 4 to N = 5 shards. Roughly what percentage of keys must move?",
-      "data": { "answer": 80, "tolerance": 1.15, "unit": "%" },
+      "data": {
+        "answer": 80,
+        "tolerance": 1.15,
+        "unit": "%"
+      },
       "explanation": "A key stays only if hash % 4 == hash % 5, which holds for 4 of every 20 hash values, so 20% stay and 80% move. Consistent hashing moves only about 1/5 of keys when adding a 5th node, which is why it's used for caches and partitioned stores."
     },
     {
       "id": "storage-fit",
-      "skill": "storage",
+      "track": "storage",
       "kind": "mcq",
       "prompt": "Which workload fits a wide-column store (e.g. Cassandra) better than a relational database?",
       "data": {
@@ -174,10 +194,9 @@
       },
       "explanation": "Wide-column stores excel at huge write volumes and queries known in advance that hit one partition (device_id) and a sorted range (time). They give up joins and multi-row transactions, which the other three workloads need."
     },
-
     {
       "id": "caching-cache-aside",
-      "skill": "caching",
+      "track": "caching",
       "kind": "mcq",
       "prompt": "In the cache-aside pattern, what happens on a cache miss?",
       "data": {
@@ -193,7 +212,7 @@
     },
     {
       "id": "caching-stampede",
-      "skill": "caching",
+      "track": "caching",
       "kind": "mcq",
       "prompt": "A hot key expires and the database falls over. Which fix addresses the actual cause?",
       "data": {
@@ -210,15 +229,19 @@
     },
     {
       "id": "caching-avg-latency",
-      "skill": "caching",
+      "track": "caching",
       "kind": "numeric",
       "prompt": "Cache hit ratio is 90%. A cache lookup takes 1 ms; a DB read takes 50 ms. A miss costs the cache lookup plus the DB read. What's the average read latency?",
-      "data": { "answer": 6, "tolerance": 1.1, "unit": "ms" },
+      "data": {
+        "answer": 6,
+        "tolerance": 1.1,
+        "unit": "ms"
+      },
       "explanation": "0.9 × 1 + 0.1 × (1 + 50) = 0.9 + 5.1 = 6 ms. Note how the 10% of misses dominate: going from 90% to 99% hits cuts the average to about 1.5 ms."
     },
     {
       "id": "caching-cdn",
-      "skill": "caching",
+      "track": "caching",
       "kind": "mcq",
       "prompt": "What does a CDN mainly buy you for static assets like images and JS bundles?",
       "data": {
@@ -232,10 +255,9 @@
       },
       "explanation": "A CDN caches content at edge locations near users, so requests travel a short distance and most never reach your origin. The trade-off is invalidation: version your asset URLs (app.3f9c.js) so you never need to purge."
     },
-
     {
       "id": "async-queue-why",
-      "skill": "async",
+      "track": "async",
       "kind": "mcq",
       "prompt": "Why put a message queue between the 'upload video' API and the transcoding service?",
       "data": {
@@ -251,7 +273,7 @@
     },
     {
       "id": "async-idempotency",
-      "skill": "async",
+      "track": "async",
       "kind": "mcq",
       "prompt": "Your queue delivers messages at least once. The consumer charges a credit card. What must the consumer do?",
       "data": {
@@ -267,7 +289,7 @@
     },
     {
       "id": "async-pubsub",
-      "skill": "async",
+      "track": "async",
       "kind": "mcq",
       "prompt": "The email service AND the analytics service must both receive every 'order_placed' event. What do you use?",
       "data": {
@@ -283,7 +305,7 @@
     },
     {
       "id": "async-outbox",
-      "skill": "async",
+      "track": "async",
       "kind": "order",
       "prompt": "Order the steps of the transactional outbox pattern.",
       "data": {
@@ -296,10 +318,9 @@
       },
       "explanation": "Writing to the DB and publishing to a broker can't be done atomically, so you write the event into the DB in the same transaction and publish it afterwards. If the relay crashes between publishing and marking, the event is published again, so consumers must be idempotent."
     },
-
     {
       "id": "consistency-cap",
-      "skill": "consistency",
+      "track": "consistency",
       "kind": "mcq",
       "prompt": "During a network partition, a replicated database keeps accepting writes on both sides. What is it choosing?",
       "data": {
@@ -315,7 +336,7 @@
     },
     {
       "id": "consistency-quorum-why",
-      "skill": "consistency",
+      "track": "consistency",
       "kind": "mcq",
       "prompt": "N = 3 replicas, writes wait for W = 2 acks, reads query R = 2 replicas. Why does a read see the latest acknowledged write?",
       "data": {
@@ -331,15 +352,19 @@
     },
     {
       "id": "consistency-quorum-r",
-      "skill": "consistency",
+      "track": "consistency",
       "kind": "numeric",
       "prompt": "N = 5 replicas and writes use W = 3. What is the minimum R that still guarantees reads overlap the latest write?",
-      "data": { "answer": 3, "tolerance": 1.0, "unit": "replicas" },
+      "data": {
+        "answer": 3,
+        "tolerance": 1.0,
+        "unit": "replicas"
+      },
       "explanation": "You need R + W > N, so R > 5 − 3 = 2, which means R = 3. With W = 5 you could read from R = 1, but then a single unavailable replica blocks every write."
     },
     {
       "id": "consistency-which-strong",
-      "skill": "consistency",
+      "track": "consistency",
       "kind": "mcq",
       "prompt": "Which feature most needs strong consistency?",
       "data": {

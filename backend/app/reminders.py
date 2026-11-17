@@ -28,5 +28,8 @@ def reminder_message(streak: int, due_count: int, goal: int, done_today: int) ->
         body = f"{remaining} more card{'s' if remaining != 1 else ''} keeps it alive."
     else:
         title = "Time for a quick drill"
-        body = f"{due_count} card{'s' if due_count != 1 else ''} ready. Five minutes keeps the skills sharp."
+        if due_count > 0:
+            body = f"{due_count} card{'s' if due_count != 1 else ''} due for review. Five minutes keeps them fresh."
+        else:
+            body = "Your next lesson is ready. Five minutes, one new idea."
     return title, body
