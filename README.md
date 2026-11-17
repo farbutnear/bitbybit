@@ -88,7 +88,7 @@ Install **Expo Go** on your phone and scan the QR code. The app finds the backen
 **Tests**
 
 ```bash
-cd backend && pytest            # 44 tests: course rules, streaks, DST, grading, reminders, push, API flows
+cd backend && pytest            # 42 tests: course rules, streaks, DST, grading, reminders, push, API flows
 cd mobile && npm run typecheck
 ```
 
