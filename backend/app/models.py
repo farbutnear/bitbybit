@@ -208,3 +208,15 @@ class PerkUse(Base):
     card_id: Mapped[str] = mapped_column(ForeignKey("cards.id", ondelete="CASCADE"))
     detail: Mapped[str | None] = mapped_column(String(60), nullable=True)  # what was struck or ruled out
     used_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class UserSim(Base):
+    """Progress on one simulator level. The daily incident is stored as "incident:<date>"."""
+
+    __tablename__ = "user_sims"
+
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    level_id: Mapped[str] = mapped_column(String(60), primary_key=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    solved_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    best_cost: Mapped[int | None] = mapped_column(Integer, nullable=True)

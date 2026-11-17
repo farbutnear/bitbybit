@@ -1,0 +1,61 @@
+{
+  "levels": [
+    {
+      "id": "launch-day",
+      "title": "Launch day",
+      "story": "Your app just hit the front page. Two servers that were fine yesterday are timing out.",
+      "teaches": "Headroom: a tier at 99% busy is not coping, it is queueing.",
+      "load": { "rps": 1800, "write_ratio": 0.05 },
+      "app": { "rps_each": 300, "service_ms": 25, "cost": 60 },
+      "db": { "read_rps": 6000, "write_rps": 1500, "service_ms": 6, "cost": 200 },
+      "knobs": [
+        { "id": "app_servers", "label": "App servers", "type": "int", "min": 1, "max": 14, "default": 2, "unit_cost": 60 }
+      ],
+      "goals": { "p99_ms": 400, "error_pct": 0.1, "budget": 800 }
+    },
+    {
+      "id": "hot-reads",
+      "title": "Hot reads",
+      "story": "Almost every request reads the same few product pages, and the database is on its knees.",
+      "teaches": "Caching: the cheapest read is the one that never reaches the database.",
+      "load": { "rps": 3000, "write_ratio": 0.05 },
+      "app": { "rps_each": 500, "service_ms": 15, "cost": 60 },
+      "db": { "read_rps": 1200, "write_rps": 600, "service_ms": 8, "cost": 200, "replica_cost": 200 },
+      "knobs": [
+        { "id": "app_servers", "label": "App servers", "type": "int", "min": 4, "max": 14, "default": 8, "unit_cost": 60 },
+        {
+          "id": "cache",
+          "label": "Cache",
+          "type": "choice",
+          "default": 0,
+          "options": [
+            { "value": 0, "label": "None", "cost": 0 },
+            { "value": 60, "label": "Small, 60% hits", "cost": 60 },
+            { "value": 80, "label": "Medium, 80% hits", "cost": 120 },
+            { "value": 95, "label": "Large, 95% hits", "cost": 250 }
+          ]
+        },
+        { "id": "replicas", "label": "Read replicas", "type": "int", "min": 0, "max": 4, "default": 0, "unit_cost": 200 }
+      ],
+      "goals": { "p99_ms": 300, "error_pct": 0.1, "budget": 1100 }
+    },
+    {
+      "id": "upload-spike",
+      "title": "Upload spike",
+      "story": "Every evening, uploads jump to five times the usual for a minute and the whole site stalls.",
+      "teaches": "Queues: absorb a burst now, do the work at a pace the database can take.",
+      "load": { "rps": 1500, "write_ratio": 0.1, "write_burst": 5, "burst_seconds": 60 },
+      "app": { "rps_each": 500, "service_ms": 15, "cost": 60 },
+      "db": { "read_rps": 4000, "write_rps": 900, "service_ms": 8, "cost": 200, "replica_cost": 200 },
+      "queue": { "cost": 50 },
+      "worker": { "rps_each": 100, "cost": 40 },
+      "knobs": [
+        { "id": "app_servers", "label": "App servers", "type": "int", "min": 4, "max": 12, "default": 6, "unit_cost": 60 },
+        { "id": "replicas", "label": "Read replicas", "type": "int", "min": 0, "max": 3, "default": 0, "unit_cost": 200 },
+        { "id": "queue", "label": "Write queue", "type": "bool", "default": false, "cost": 50 },
+        { "id": "workers", "label": "Workers", "type": "int", "min": 1, "max": 8, "default": 1, "unit_cost": 40, "needs": "queue" }
+      ],
+      "goals": { "p99_ms": 300, "error_pct": 0.1, "lag_s": 45, "budget": 1250 }
+    }
+  ]
+}

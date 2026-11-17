@@ -9,13 +9,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
-from . import course, loot, service
+from . import course, loot, service, sim
 from .config import settings
 from .db import SessionLocal, get_db, init_db, utcnow
 from .models import Card, Lesson, PushToken, User
 from .push import Sender, is_expo_token, send_expo_push
 from .seed import seed_content
 from .srs import AnswerError
+from .streaks import local_today
 
 
 @asynccontextmanager
@@ -101,6 +102,10 @@ class PerkIn(BaseModel):
     session_id: str
     perk: Literal["strike_option", "clear_node"]
     card_id: str
+
+
+class SimRunIn(BaseModel):
+    config: dict[str, Any] = Field(default_factory=dict)  # knob id -> value; missing knobs use the level's default
 
 
 class PushTokenIn(BaseModel):
@@ -298,6 +303,37 @@ def post_use_perk(user_id: str, body: PerkIn, db: DB, now: Now, rng: Rng) -> dic
         return loot.use_perk(db, user, session, body.perk, card, now, rng)
     except loot.LootError as exc:
         raise HTTPException(409, str(exc)) from None
+
+
+# ----- simulator -----
+
+def _sim_level(user: User, level_id: str, now: datetime) -> dict:
+    level = sim.get_level(level_id, local_today(user.timezone, now))
+    if level is None:
+        raise HTTPException(404, "sim level not found")
+    return level
+
+
+@app.get("/users/{user_id}/sim")
+def get_sim_overview(user_id: str, db: DB, now: Now) -> dict:
+    """The simulator levels with this user's progress, and today's incident."""
+    user = _user(db, user_id)
+    return sim.overview(db, user, local_today(user.timezone, now))
+
+
+@app.get("/users/{user_id}/sim/{level_id}")
+def get_sim_level(user_id: str, level_id: str, db: DB, now: Now) -> dict:
+    """A level's story, knobs and goals, plus how the system behaves before anything is changed. `incident` is today's."""
+    return sim.public_level(_sim_level(_user(db, user_id), level_id, now))
+
+
+@app.post("/users/{user_id}/sim/{level_id}/run")
+def post_sim_run(user_id: str, level_id: str, body: SimRunIn, db: DB, now: Now) -> dict:
+    user = _user(db, user_id)
+    try:
+        return sim.run(db, user, _sim_level(user, level_id, now), body.config, now)
+    except sim.SimError as exc:
+        raise HTTPException(422, str(exc)) from None
 
 
 @app.post("/users/{user_id}/push-tokens", status_code=201)
