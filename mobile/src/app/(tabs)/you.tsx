@@ -4,7 +4,9 @@ import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon, type IconName } from '../../components/Icon';
-import { Mascot } from '../../components/Mascot';
+import { formatBits } from '../../components/Bits';
+import { Chamfer } from '../../components/shapes';
+import { LlamaStage } from '../../components/StatusBoard';
 import { Button, Card, Chip, SectionTitle } from '../../components/ui';
 import { api, API_URL } from '../../lib/api';
 import {
@@ -70,13 +72,13 @@ export default function You() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.header}>
-        <Mascot mood={user.goal_met_today ? 'happy' : 'idle'} size={96} />
+        <LlamaStage mood={user.goal_met_today ? 'happy' : 'idle'} size={96} />
         <View style={{ flex: 1 }}>
           <Text style={type.title}>{user.name}</Text>
           <Text style={type.small}>
             {user.learned_count === 0
               ? 'No cards learned yet. Your first lesson is waiting.'
-              : `${user.learned_count} card${user.learned_count === 1 ? '' : 's'} learned so far.`}
+              : `${user.learned_count} card${user.learned_count === 1 ? '' : 's'} learned, ${formatBits(user.bits_earned)} earned.`}
           </Text>
         </View>
       </View>
@@ -249,11 +251,11 @@ export default function You() {
 
 function Stat({ icon, value, label, tint }: { icon: IconName; value: number; label: string; tint: string }) {
   return (
-    <View style={styles.stat}>
+    <Chamfer cut={12} fill={colors.card} stroke={colors.border} style={styles.stat}>
       <Icon name={icon} size={24} color={icon === 'flame' ? undefined : tint} />
       <Text style={styles.statValue}>{value}</Text>
       <Text style={type.tiny}>{label}</Text>
-    </View>
+    </Chamfer>
   );
 }
 
@@ -306,11 +308,6 @@ const styles = StyleSheet.create({
   stat: {
     flexGrow: 1,
     flexBasis: '45%',
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
-    borderWidth: 2,
-    borderBottomWidth: 5,
-    borderColor: colors.border,
     padding: space(3),
     gap: 2,
   },

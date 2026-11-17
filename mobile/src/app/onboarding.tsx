@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Mascot } from '../components/Mascot';
+import { LlamaStage } from '../components/StatusBoard';
 import { TrackPicker } from '../components/TrackPicker';
 import { Button, Chip } from '../components/ui';
 import { api, type Track } from '../lib/api';
@@ -107,7 +107,7 @@ export default function Onboarding() {
             </Pressable>
 
             <View style={styles.hero}>
-              <Mascot mood="idle" size={140} />
+              <LlamaStage size={140} />
               <Text style={[type.title, { textAlign: 'center' }]}>Set your pace</Text>
               <Text style={[type.small, styles.subtitle]}>
                 A little every day beats a lot once. The llama will keep you honest.
