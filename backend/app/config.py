@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     default_reminder_hour: int = 20
     starting_streak_freezes: int = 1
     max_streak_freezes: int = 2
+    starting_bits: int = 100  # enough for one card pack
 
     # FSRS target probability of recall at review time
     desired_retention: float = 0.9

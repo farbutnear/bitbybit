@@ -34,6 +34,12 @@ class User(Base):
     # The track whose path the home screen shows. The user's full selection is in user_tracks.
     active_track_id: Mapped[str | None] = mapped_column(ForeignKey("tracks.id"), nullable=True)
 
+    # Bits: the currency earned by learning. bits is the balance, bits_earned the lifetime total.
+    bits: Mapped[int] = mapped_column(Integer, default=0)
+    bits_earned: Mapped[int] = mapped_column(Integer, default=0)
+    packs_opened: Mapped[int] = mapped_column(Integer, default=0)
+    packs_since_legendary: Mapped[int] = mapped_column(Integer, default=0)  # for the pity rule
+
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow)
 
 
@@ -133,6 +139,8 @@ class Review(Base):
     reviewed_at: Mapped[datetime] = mapped_column(UTCDateTime)
     local_date: Mapped[date] = mapped_column(Date)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    session_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    assisted: Mapped[bool] = mapped_column(Boolean, default=False)  # a perk helped with this answer
 
     __table_args__ = (Index("ix_reviews_user_local_date", "user_id", "local_date"),)
 
@@ -163,3 +171,40 @@ class UserLesson(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     lesson_id: Mapped[str] = mapped_column(ForeignKey("lessons.id"), primary_key=True)
     completed_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+# ---------- gear and perks (see loot.py) ----------
+
+class UserGear(Base):
+    """A piece of gear the user owns. The catalogue itself lives in loot.GEAR."""
+
+    __tablename__ = "user_gear"
+
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    gear_id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    copies: Mapped[int] = mapped_column(Integer, default=1)
+    equipped: Mapped[bool] = mapped_column(Boolean, default=False)
+    obtained_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class PlaySession(Base):
+    """One run through a lesson or a review. Perk charges are counted per session."""
+
+    __tablename__ = "play_sessions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    lesson_id: Mapped[str | None] = mapped_column(ForeignKey("lessons.id"), nullable=True)  # None for review
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime)
+
+
+class PerkUse(Base):
+    __tablename__ = "perk_uses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    session_id: Mapped[str] = mapped_column(ForeignKey("play_sessions.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    perk: Mapped[str] = mapped_column(String(24))
+    card_id: Mapped[str] = mapped_column(ForeignKey("cards.id", ondelete="CASCADE"))
+    detail: Mapped[str | None] = mapped_column(String(60), nullable=True)  # what was struck or ruled out
+    used_at: Mapped[datetime] = mapped_column(UTCDateTime)

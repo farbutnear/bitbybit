@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from . import srs
+from . import loot, srs
 from .config import settings
 from .models import Card, PushToken, Review, Track, User, UserCard, UserTrack
 from .push import PushMessage, Sender
@@ -90,6 +90,9 @@ def user_summary(db: Session, user: User, now: datetime) -> dict:
         "due_count": due_count(db, user, now),
         "learned_count": learned_count(db, user),
         "has_push": has_push(db, user),
+        "bits": user.bits,
+        "bits_earned": user.bits_earned,
+        "equipped": loot.equipped(db, user),
         "active_track_id": user.active_track_id,
         "track_ids": list(
             db.scalars(
@@ -136,6 +139,7 @@ def build_review(db: Session, user: User, now: datetime, practice: bool = False,
     rng = rng or random.Random()
     next_due = db.scalar(select(func.min(UserCard.due)).where(UserCard.user_id == user.id, UserCard.due > now))
     return {
+        "session": loot.start_session(db, user, None, now) if ids else None,
         "cards": [srs.public_payload(cards[i], rng) | {"reason": reason} for i in ids],
         "due_count": due_count(db, user, now),
         "learned_count": learned_count(db, user),
@@ -151,14 +155,25 @@ def submit_review(
     now: datetime,
     is_retry: bool = False,
     duration_ms: int | None = None,
+    session_id: str | None = None,
 ) -> dict:
     correct, canonical = srs.grade(card, answer)  # raises srs.AnswerError on malformed answers
     today = local_today(user.timezone, now)
+    session = loot.get_session(db, user, session_id)
 
+    # Rollback cap: the first wrong answer of a session is caught before it counts. Nothing is
+    # recorded and the right answer is not revealed, so the second attempt is a real one.
+    if session and not correct and not is_retry and loot.charges_left(db, user, session)["second_try"] > 0:
+        loot.record_use(db, session, "second_try", card.id, None, now)
+        db.commit()
+        return {"rolled_back": True, "correct": False, "perks": loot.charges_left(db, user, session)}
+
+    assisted = loot.was_assisted(db, session, card.id)
     uc = db.get(UserCard, (user.id, card.id))
+    fresh = uc is None or uc.due <= now  # new or due, as opposed to practising ahead
     schedule_it = not (is_retry and uc is not None)
     if schedule_it:
-        new = srs.schedule(uc.fsrs if uc else None, correct, now)
+        new = srs.schedule(uc.fsrs if uc else None, correct, now, assisted)
         if uc is None:
             uc = UserCard(user_id=user.id, card_id=card.id, first_seen_date=today, reps=0, lapses=0)
             db.add(uc)
@@ -175,10 +190,12 @@ def submit_review(
             user_id=user.id,
             card_id=card.id,
             correct=correct,
-            rating=srs.rating_for(correct) if schedule_it else 0,
+            rating=srs.rating_for(correct, assisted) if schedule_it else 0,
             reviewed_at=now,
             local_date=today,
             duration_ms=duration_ms,
+            session_id=session.id if session else None,
+            assisted=assisted,
         )
     )
     db.flush()
@@ -186,19 +203,41 @@ def submit_review(
     count = today_count(db, user, now)
     just_met_goal = False
     if count >= user.daily_goal and user.last_goal_date != today:
-        _save_streak(user, apply_goal_met(streak_state(user), today, settings.max_streak_freezes))
+        _save_streak(user, apply_goal_met(streak_state(user), today, loot.max_freezes(db, user)))
         just_met_goal = True
+
+    # Bits: paid for right first-try answers, the daily goal and each full week of streak.
+    bits = 0
+    if correct and not is_retry:
+        if not fresh:
+            bits += loot.BITS_CARD_AHEAD
+        elif assisted:
+            bits += loot.BITS_CARD_ASSISTED
+        else:
+            bits += loot.BITS_CARD
+            if "combo_bonus" in loot.active_perks(db, user) and loot.combo(db, session) >= loot.COMBO_AFTER:
+                bits += loot.COMBO_BITS
+    if just_met_goal:
+        bits += loot.BITS_GOAL
+        if user.current_streak % 7 == 0:
+            bits += loot.BITS_STREAK_WEEK
+    bits_earned = loot.award(db, user, bits)
     db.commit()
 
     s = streak_state(user)
     return {
+        "rolled_back": False,
         "correct": correct,
+        "assisted": assisted,
         "correct_answer": canonical,
         "explanation": card.explanation,
         "next_due": uc.due if uc else None,
         "today_count": count,
         "goal_met_today": user.last_goal_date == today,
         "just_met_goal": just_met_goal,
+        "bits_earned": bits_earned,
+        "bits": user.bits,
+        "perks": loot.charges_left(db, user, session) if session else None,
         "streak": {
             "current": displayed_streak(s, today),
             "longest": s.longest,

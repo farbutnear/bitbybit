@@ -23,6 +23,7 @@
 - **Live diagrams:** architectures are drawn from data, with request dots flowing along the wires on teaching screens
 - **FSRS spaced repetition** in a separate review queue, so each card you've learned comes back right before you'd forget it
 - **Daily streak** in your local timezone, with streak freezes
+- **Bits, packs and gear** (backend done, app screens next): bits earned by learning open card packs of gear for the llama, and every piece is a perk that changes how a lesson plays
 - **Streak reminders** as local notifications (work in Expo Go) or server push via a backend worker
 - **Sound:** effects for taps, answers and finished lessons, a meme clip on wrong answers (meme mode) and background music, each with its own switch on the You tab
 
@@ -89,7 +90,7 @@ Install **Expo Go** on your phone and scan the QR code. The app finds the backen
 **Tests**
 
 ```bash
-cd backend && pytest            # 47 tests: course rules, every grader, a full-course playthrough, streaks, DST, grading, reminders, push, API flows
+cd backend && pytest            # 68 tests: course rules, every grader, a full-course playthrough, streaks, DST, grading, bits, packs and perks, reminders, push, API flows
 cd mobile && npm run typecheck
 ```
 
@@ -158,6 +159,22 @@ Sound follows the phone's silent switch and mixes with whatever else is playing.
 
 **Reminder worker.** Users with a push token have a `next_reminder_at` (UTC, indexed), computed from their local reminder time with `zoneinfo`, so it's DST-correct. Each tick claims due users with a conditional `UPDATE ... WHERE next_reminder_at = <old>`, so several workers can run without double-sending. The claim happens *before* the send, which makes reminders at-most-once: a missed nudge is better than a duplicate. Users who already met today's goal are skipped. Tokens Expo reports as `DeviceNotRegistered` are deleted.
 
+**Bits, packs and gear (backend only so far; the app screens come next).** Bits are earned by learning and can't be bought: 5 for a new or due card answered right first try, 25 for the daily goal, 20 for finishing a lesson the first time, 50 for each full week of streak. Replays and practising ahead pay almost nothing, so grinding one easy card is pointless. 100 bits open a pack of three gear cards. The odds (60% common, 35% rare, 5% legendary per card) are returned by `GET /users/{id}/loot` so the app can show them, a legendary is guaranteed at least every 10th pack, and duplicates pay bits back. Bits also buy streak freezes.
+
+Gear goes in three slots (head, face, neck) and each piece changes how a session plays. See `backend/app/loot.py` for the catalogue:
+
+| Gear | Slot | Perk |
+|---|---|---|
+| Rollback cap | Head | The first wrong answer of a session is caught before it counts: nothing is revealed and you answer again |
+| On-call headset | Head | From the third right answer in a row, each one pays 3 extra bits |
+| Root crown | Head | Face gear gets a second charge |
+| Debug visor | Face | Strikes one wrong option off a multiple-choice card, once per session |
+| Tracer lens | Face | Rules out one healthy component on a find-the-fault card, once per session |
+| Replica tags | Neck | The streak can hold one more freeze |
+| Block chain | Neck | 25% more bits |
+
+No perk answers a card for you, and the server decides what to strike, so the answer still never reaches the app. A card answered with help is rated `Hard` instead of `Good` in FSRS and pays 2 bits instead of 5, so it comes back sooner. Charges are counted per play session (`session.id` in the lesson and review payloads; send it back as `session_id` with each answer).
+
 **Grading happens server-side.** Lesson and review payloads never include answers. Numeric answers are graded by ratio (`tolerance: 1.5` means within 1.5× either way), which suits back-of-envelope estimates.
 
 ## Project layout
@@ -169,6 +186,7 @@ backend/
     course.py        tracks, the lesson path, lesson contents and completion
     service.py       answering cards, the review queue, reminder tick
     srs.py           FSRS wrapper + answer grading
+    loot.py          bits, card packs, gear and perks
     streaks.py       streak rules (pure functions)
     reminders.py     next reminder time (DST-aware), message text
     push.py          Expo push client (batched, error mapping)

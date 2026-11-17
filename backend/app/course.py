@@ -11,7 +11,7 @@ from datetime import datetime
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from . import srs
+from . import loot, srs
 from .models import Card, Lesson, Step, Track, Unit, User, UserCard, UserLesson, UserTrack
 
 
@@ -204,8 +204,10 @@ def complete_lesson(db: Session, user: User, lesson: Lesson, now: datetime) -> d
         raise CourseError("answer every card in the lesson before finishing it")
 
     first_time = status[lesson.id] != "done"
+    bits_earned = 0
     if first_time:
         db.add(UserLesson(user_id=user.id, lesson_id=lesson.id, completed_at=now))
+        bits_earned = loot.award(db, user, loot.BITS_LESSON)  # replays pay nothing extra
         db.commit()
         lessons, status = _statuses(db, user, lesson.track_id)
 
@@ -213,6 +215,8 @@ def complete_lesson(db: Session, user: User, lesson: Lesson, now: datetime) -> d
     done = sum(1 for v in status.values() if v == "done")
     return {
         "first_time": first_time,
+        "bits_earned": bits_earned,
+        "bits": user.bits,
         "next_lesson": {"id": nxt.id, "title": nxt.title} if nxt else None,
         "track_complete": nxt is None,
         "lessons_done": done,

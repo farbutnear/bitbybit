@@ -74,7 +74,7 @@ def utcnow() -> datetime:
 # Bump when the tables change. There are no migrations yet (prototype), so a mismatch
 # rebuilds the database from scratch; content is reseeded and the app sends users whose
 # account vanished back through onboarding.
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def init_db(target: Engine | None = None, reset_on_change: bool = True) -> bool:

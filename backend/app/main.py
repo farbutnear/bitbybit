@@ -1,3 +1,4 @@
+import random
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Annotated, Any, Literal
@@ -8,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
-from . import course, service
+from . import course, loot, service
 from .config import settings
 from .db import SessionLocal, get_db, init_db, utcnow
 from .models import Card, Lesson, PushToken, User
@@ -41,7 +42,12 @@ def get_sender() -> Sender:
     return send_expo_push
 
 
+def get_rng() -> random.Random:
+    return random.Random()
+
+
 Now = Annotated[datetime, Depends(get_now)]
+Rng = Annotated[random.Random, Depends(get_rng)]
 
 
 # ---------- schemas ----------
@@ -88,6 +94,13 @@ class ReviewIn(BaseModel):
     answer: Any
     is_retry: bool = False
     duration_ms: int | None = Field(default=None, ge=0)
+    session_id: str | None = None  # from the lesson or review payload; needed for perks to apply
+
+
+class PerkIn(BaseModel):
+    session_id: str
+    perk: Literal["strike_option", "clear_node"]
+    card_id: str
 
 
 class PushTokenIn(BaseModel):
@@ -127,6 +140,7 @@ def create_user(body: UserCreate, db: DB, now: Now) -> dict:
         reminder_hour=body.reminder_hour,
         reminder_minute=body.reminder_minute,
         streak_freezes=settings.starting_streak_freezes,
+        bits=settings.starting_bits,
     )
     db.add(user)
     db.flush()
@@ -189,11 +203,14 @@ def get_path(user_id: str, track_id: str, db: DB) -> dict:
 
 
 @app.get("/users/{user_id}/lessons/{lesson_id}")
-def get_lesson(user_id: str, lesson_id: str, db: DB) -> dict:
+def get_lesson(user_id: str, lesson_id: str, db: DB, now: Now) -> dict:
+    user = _user(db, user_id)
     try:
-        return course.lesson_payload(db, _user(db, user_id), _lesson(db, lesson_id))
+        payload = course.lesson_payload(db, user, _lesson(db, lesson_id))
     except course.CourseError as exc:
         raise HTTPException(403, str(exc)) from None
+    # Loading a lesson starts a run of it: that is what perk charges are counted against.
+    return payload | {"session": loot.start_session(db, user, lesson_id, now)}
 
 
 @app.post("/users/{user_id}/lessons/{lesson_id}/complete")
@@ -218,9 +235,69 @@ def post_review(user_id: str, body: ReviewIn, db: DB, now: Now) -> dict:
     if card is None:
         raise HTTPException(404, "card not found")
     try:
-        return service.submit_review(db, user, card, body.answer, now, body.is_retry, body.duration_ms)
+        return service.submit_review(db, user, card, body.answer, now, body.is_retry, body.duration_ms, body.session_id)
     except AnswerError as exc:
         raise HTTPException(422, str(exc)) from None
+
+
+# ----- bits, packs, gear and perks -----
+
+@app.get("/users/{user_id}/loot")
+def get_loot(user_id: str, db: DB) -> dict:
+    """Balance, the gear catalogue with what is owned and equipped, and the published pack odds."""
+    return loot.loot_summary(db, _user(db, user_id))
+
+
+@app.post("/users/{user_id}/packs/open")
+def post_open_pack(user_id: str, db: DB, now: Now, rng: Rng) -> dict:
+    user = _user(db, user_id)
+    try:
+        opened = loot.open_pack(db, user, now, rng)
+    except loot.LootError as exc:
+        raise HTTPException(409, str(exc)) from None
+    return opened | {"loot": loot.loot_summary(db, user)}
+
+
+@app.post("/users/{user_id}/gear/{gear_id}/equip")
+def post_equip(user_id: str, gear_id: str, db: DB) -> dict:
+    return _set_equipped(db, user_id, gear_id, True)
+
+
+@app.post("/users/{user_id}/gear/{gear_id}/unequip")
+def post_unequip(user_id: str, gear_id: str, db: DB) -> dict:
+    return _set_equipped(db, user_id, gear_id, False)
+
+
+def _set_equipped(db: Session, user_id: str, gear_id: str, on: bool) -> dict:
+    user = _user(db, user_id)
+    try:
+        loot.equip(db, user, gear_id, on)
+    except loot.LootError as exc:
+        raise HTTPException(409, str(exc)) from None
+    return loot.loot_summary(db, user)
+
+
+@app.post("/users/{user_id}/shop/freeze")
+def post_buy_freeze(user_id: str, db: DB) -> dict:
+    user = _user(db, user_id)
+    try:
+        loot.buy_freeze(db, user)
+    except loot.LootError as exc:
+        raise HTTPException(409, str(exc)) from None
+    return loot.loot_summary(db, user)
+
+
+@app.post("/users/{user_id}/perks/use")
+def post_use_perk(user_id: str, body: PerkIn, db: DB, now: Now, rng: Rng) -> dict:
+    user = _user(db, user_id)
+    session = loot.get_session(db, user, body.session_id)
+    card = db.get(Card, body.card_id)
+    if session is None or card is None:
+        raise HTTPException(404, "session or card not found")
+    try:
+        return loot.use_perk(db, user, session, body.perk, card, now, rng)
+    except loot.LootError as exc:
+        raise HTTPException(409, str(exc)) from None
 
 
 @app.post("/users/{user_id}/push-tokens", status_code=201)

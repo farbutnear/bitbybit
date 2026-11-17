@@ -3,8 +3,8 @@
 Card kinds: mcq, order, numeric, slider (log-scale estimate), spot (tap the faulty
 component), build (fill slots in an architecture diagram), match (pair items).
 
-Answers are auto-graded, so each review maps to one of two FSRS ratings:
-wrong -> Again, right -> Good.
+Answers are auto-graded, so each review maps to an FSRS rating without asking the user:
+wrong -> Again, right -> Good, right with help from a perk -> Hard.
 
 Learning steps are disabled: short-term repetition happens inside the lesson (the app
 re-asks a missed card at the end), so FSRS only has to schedule across days. A retry
@@ -129,12 +129,18 @@ def public_payload(card: Card, rng: random.Random | None = None) -> dict:
     raise ValueError(f"unknown card kind {card.kind!r}")
 
 
-def schedule(fsrs_state: dict | None, correct: bool, now: datetime) -> FsrsCard:
+def _rating(correct: bool, assisted: bool) -> Rating:
+    # A right answer that a perk helped with is "Hard": it counts, but comes back sooner.
+    if not correct:
+        return Rating.Again
+    return Rating.Hard if assisted else Rating.Good
+
+
+def schedule(fsrs_state: dict | None, correct: bool, now: datetime, assisted: bool = False) -> FsrsCard:
     card = FsrsCard.from_dict(fsrs_state) if fsrs_state else FsrsCard()
-    rating = Rating.Good if correct else Rating.Again
-    new_card, _log = SCHEDULER.review_card(card, rating, now)
+    new_card, _log = SCHEDULER.review_card(card, _rating(correct, assisted), now)
     return new_card
 
 
-def rating_for(correct: bool) -> int:
-    return int(Rating.Good if correct else Rating.Again)
+def rating_for(correct: bool, assisted: bool = False) -> int:
+    return int(_rating(correct, assisted))
