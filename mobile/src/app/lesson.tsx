@@ -11,6 +11,7 @@ import { ResultPanel } from '../components/ResultPanel';
 import { TeachScreen } from '../components/TeachScreen';
 import { Button, ProgressBar } from '../components/ui';
 import { api, type Answer, type LessonCompletion, type ReviewResult, type SessionCard, type TeachStep } from '../lib/api';
+import { play } from '../lib/sound';
 import { colors, fonts, radius, space, type } from '../lib/theme';
 import { useUser } from '../lib/UserContext';
 
@@ -188,6 +189,7 @@ function Player({ lessonId, practice }: { lessonId: string | null; practice: boo
         duration_ms: Date.now() - startedAt.current,
       });
       haptic(res.correct ? 'success' : 'error');
+      play(res.correct ? 'right' : 'wrong');
       setResult(res);
       setLast(res);
       if (res.just_met_goal) setMetGoal(true);
@@ -215,6 +217,7 @@ function Player({ lessonId, practice }: { lessonId: string | null; practice: boo
     try {
       if (userId && lessonId) setCompletion(await api.completeLesson(userId, lessonId));
       await refresh();
+      play(metGoal ? 'goal' : 'done');
       setFinished(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

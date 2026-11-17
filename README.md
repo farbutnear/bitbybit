@@ -24,6 +24,7 @@
 - **FSRS spaced repetition** in a separate review queue, so each card you've learned comes back right before you'd forget it
 - **Daily streak** in your local timezone, with streak freezes
 - **Streak reminders** as local notifications (work in Expo Go) or server push via a backend worker
+- **Sound:** effects for taps, answers and finished lessons, a meme clip on wrong answers (meme mode) and background music, each with its own switch on the You tab
 
 - **Mobile app:** React Native + Expo SDK 58 (TypeScript, Expo Router), one codebase for iOS and Android
 - **Backend:** FastAPI + SQLAlchemy (SQLite for dev, Postgres in Docker), FSRS scheduling, a reminder worker that sends push through Expo's push service
@@ -136,6 +137,17 @@ The llama lives in `mobile/assets/mascot/` as three images: `idle.png`, `happy.p
 
 Brand assets in `mobile/assets/`: `icon.png` (app icon, single "b" mark), `android-icon-foreground.png` / `android-icon-monochrome.png` (Android adaptive and themed icons), `splash-icon.png` (full logo, used by the `expo-splash-screen` plugin), `logo-light.png`, `wordmark-light.png` and `mark-b.png` (in-app branding) and `notification-icon.png`. Icon and splash changes show up in development and store builds, not in Expo Go.
 
+## Sound
+
+Sound lives in `mobile/assets/sounds/` and is played with `expo-audio`, which Expo Go includes. The effects, the default meme clip (`memes/womp.wav`) and the music loop are synthesised by `tools/make_sounds.py` (`pip install numpy scipy`), so they are original and safe to ship.
+
+To add your own, drop audio files (`.mp3`, `.wav`, `.m4a`, `.aac`) into a folder and restart `./dev.sh`. No code changes:
+
+- `mobile/assets/sounds/memes/`: with meme mode on, a wrong answer plays one of these at random instead of the plain sound
+- `mobile/assets/sounds/music/`: any file here replaces the built-in loop; one track is picked per app start and looped
+
+Sound follows the phone's silent switch and mixes with whatever else is playing. Effects, meme mode and music each have a switch on the You tab. Only add clips you have the right to redistribute before a store release.
+
 ## Design notes
 
 **Spaced repetition (FSRS).** Each user×card pair stores FSRS state (stability, difficulty, due). Answers are auto-graded, so a wrong answer is `Again` and a right one is `Good`. FSRS's own learning steps are off: short-term repetition happens inside the lesson instead. A missed card is re-asked at the end, Duolingo style, and that retry counts toward the daily goal but doesn't touch the schedule.
@@ -168,7 +180,9 @@ mobile/
   src/app/           (tabs)/ Learn, Review and You; plus onboarding, lesson and tracks
   src/components/    Diagram, path view, track picker, teach screen, result panel, UI kit
   src/components/exercises/   one component per card kind
-  src/lib/           api client, notifications, user context, theme
+  src/lib/           api client, notifications, sound, user context, theme
+  assets/sounds/     effects, plus drop-in memes/ and music/ folders
+tools/make_sounds.py synthesises the sound effects and the music loop
 docker-compose.yml   Postgres + API + worker
 ```
 

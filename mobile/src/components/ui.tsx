@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { play } from '../lib/sound';
 import { colors, fonts, radius, space } from '../lib/theme';
 
 type Variant = 'primary' | 'secondary' | 'jade' | 'ruby';
@@ -36,7 +37,10 @@ export function Button({
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ disabled: !!off }}
-      onPress={onPress}
+      onPress={() => {
+        play('tap');
+        onPress();
+      }}
       disabled={off}
       style={({ pressed }) => [
         styles.button,
@@ -63,7 +67,10 @@ export function Chip({ label, selected, onPress }: { label: string; selected: bo
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      onPress={onPress}
+      onPress={() => {
+        play('tap');
+        onPress();
+      }}
       style={({ pressed }) => [
         styles.chip,
         selected && { backgroundColor: colors.chosen, borderColor: colors.pink, borderBottomColor: colors.pinkDark },

@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { Answer, ReviewResult, SessionCard } from '../../lib/api';
+import { play } from '../../lib/sound';
 import { colors, fonts, radius, space } from '../../lib/theme';
 import { Icon } from '../Icon';
 
@@ -41,7 +42,10 @@ export function Tile({
       accessibilityRole="button"
       accessibilityState={{ selected: state === 'chosen', disabled }}
       disabled={disabled}
-      onPress={onPress}
+      onPress={() => {
+        play('tap');
+        onPress?.();
+      }}
       style={({ pressed }) => [
         styles.tile,
         { backgroundColor: t.bg, borderColor: t.border, borderBottomColor: t.edge },

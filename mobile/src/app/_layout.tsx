@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { AppState, Platform, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { initSound } from '../lib/sound';
 import { colors, fonts } from '../lib/theme';
 import { UserProvider, useUser } from '../lib/UserContext';
 
@@ -42,6 +43,9 @@ export default function RootLayout() {
     Nunito_600SemiBold,
     Nunito_800ExtraBold,
   });
+  useEffect(() => {
+    initSound();
+  }, []);
   if (!fontsLoaded && !fontError) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 
   return (

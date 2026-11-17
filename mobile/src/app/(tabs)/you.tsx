@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon, type IconName } from '../../components/Icon';
@@ -17,6 +17,7 @@ import {
   serverPushAvailability,
 } from '../../lib/notifications';
 import { deviceTimezone, formatHour, GOALS, REMINDER_HOURS } from '../../lib/prefs';
+import { play, setSoundPref, soundLibrary, useSoundPrefs } from '../../lib/sound';
 import { colors, fonts, radius, space, type } from '../../lib/theme';
 import { useUser } from '../../lib/UserContext';
 
@@ -28,6 +29,7 @@ function notify(title: string, message: string) {
 /** Your progress at a glance, plus every setting. */
 export default function You() {
   const { user, setUser, signOut, refresh } = useUser();
+  const sound = useSoundPrefs();
   const [permission, setPermission] = useState<string>('…');
   const [busy, setBusy] = useState<string | null>(null);
   const push = serverPushAvailability();
@@ -119,6 +121,40 @@ export default function You() {
           ))}
         </View>
       </View>
+
+      <Card style={{ gap: space(3) }}>
+        <SectionTitle>Sound</SectionTitle>
+        <Toggle
+          title="Sound effects"
+          note="Taps, right and wrong answers, finishing a lesson."
+          value={sound.effects}
+          onChange={(v) => {
+            setSoundPref('effects', v);
+            if (v) play('right');
+          }}
+        />
+        <Toggle
+          title="Meme mode"
+          note={
+            soundLibrary.memes.length
+              ? `A wrong answer plays a clip instead of the plain sound. ${soundLibrary.memes.length} in the pool.`
+              : 'No clips yet. Add audio files to assets/sounds/memes.'
+          }
+          value={sound.memes && sound.effects}
+          disabled={!sound.effects || !soundLibrary.memes.length}
+          onChange={(v) => {
+            setSoundPref('memes', v);
+            if (v) play('wrong');
+          }}
+        />
+        <Toggle
+          title="Music"
+          note={soundLibrary.usingPlaceholderMusic ? 'Playing the built-in loop.' : `Playing: ${soundLibrary.music.join(', ')}`}
+          value={sound.music}
+          onChange={(v) => setSoundPref('music', v)}
+        />
+        <Text style={styles.note}>Sound follows your phone’s silent switch.</Text>
+      </Card>
 
       <Card style={{ gap: space(3) }}>
         <SectionTitle>Notifications</SectionTitle>
@@ -221,6 +257,39 @@ function Stat({ icon, value, label, tint }: { icon: IconName; value: number; lab
   );
 }
 
+function Toggle({
+  title,
+  note,
+  value,
+  disabled,
+  onChange,
+}: {
+  title: string;
+  note: string;
+  value: boolean;
+  disabled?: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <View style={[styles.toggle, disabled && { opacity: 0.5 }]}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.toggleTitle}>{title}</Text>
+        <Text style={type.small}>{note}</Text>
+      </View>
+      <Switch
+        accessibilityLabel={title}
+        value={value}
+        disabled={disabled}
+        onValueChange={onChange}
+        trackColor={{ false: colors.border, true: colors.pinkDark }}
+        thumbColor={value ? colors.pink : colors.muted}
+        ios_backgroundColor={colors.border}
+        {...(Platform.OS === 'web' ? { activeThumbColor: colors.pink } : null)}
+      />
+    </View>
+  );
+}
+
 function Row({ k, v }: { k: string; v: string }) {
   return (
     <View style={styles.row}>
@@ -245,7 +314,9 @@ const styles = StyleSheet.create({
     padding: space(3),
     gap: 2,
   },
-  statValue: { fontFamily: fonts.displayBold, fontSize: 30, lineHeight: 34 },
+  toggle: { flexDirection: 'row', alignItems: 'center', gap: space(3) },
+  toggleTitle: { fontFamily: fonts.display, fontSize: 17, color: colors.text },
+  statValue: { fontFamily: fonts.displayBold, fontSize: 30, lineHeight: 34, color: colors.text },
   link: {
     flexDirection: 'row',
     alignItems: 'center',
