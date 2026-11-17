@@ -81,7 +81,7 @@ export default function You() {
 
       <View style={styles.grid}>
         <Stat icon="flame" value={streak.current} label="day streak" tint={colors.gold} />
-        <Stat icon="trophy" value={streak.longest} label="best streak" tint={colors.pink} />
+        <Stat icon="trophy" value={streak.longest} label="best streak" tint={colors.muted} />
         <Stat icon="freeze" value={streak.freezes} label={streak.freezes === 1 ? 'streak freeze' : 'streak freezes'} tint={colors.ice} />
         <Stat icon="review" value={user.due_count} label="due for review" tint={colors.jadeText} />
       </View>
@@ -215,7 +215,7 @@ function Stat({ icon, value, label, tint }: { icon: IconName; value: number; lab
   return (
     <View style={styles.stat}>
       <Icon name={icon} size={24} color={icon === 'flame' ? undefined : tint} />
-      <Text style={[styles.statValue, { color: tint }]}>{value}</Text>
+      <Text style={styles.statValue}>{value}</Text>
       <Text style={type.tiny}>{label}</Text>
     </View>
   );

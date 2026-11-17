@@ -33,8 +33,8 @@ export function TrackPicker({
               pressed && { borderBottomWidth: 2, marginTop: 3 },
             ]}
           >
-            <View style={[styles.icon, on && { backgroundColor: colors.pink }]}>
-              <Icon name={trackIcon(t.icon)} size={24} color={on ? colors.pinkInk : colors.muted} />
+            <View style={styles.icon}>
+              <Icon name={trackIcon(t.icon)} size={24} color={on ? colors.pink : colors.muted} />
             </View>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={[styles.title, !t.available && { color: colors.muted }]}>{t.title}</Text>
@@ -68,11 +68,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderBottomWidth: 5,
     borderColor: colors.border,
-    borderBottomColor: '#2F0D24',
+    borderBottomColor: colors.edge,
     borderRadius: radius.md,
     padding: space(3),
   },
-  tileOn: { borderColor: colors.pink, borderBottomColor: colors.pinkDark, backgroundColor: '#4A1638' },
+  tileOn: { borderColor: colors.pink, borderBottomColor: colors.pinkDark, backgroundColor: colors.chosen },
   tileOff: { opacity: 0.6, borderBottomWidth: 2 },
   icon: {
     width: 48,

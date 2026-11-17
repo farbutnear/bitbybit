@@ -177,15 +177,15 @@ export default function Learn() {
 
 /** Today's cards as a ring that fills up, gold while in progress and jade once the goal is met. */
 function GoalRing({ done, goal, met }: { done: number; goal: number; met: boolean }) {
-  const size = 68;
-  const stroke = 9;
+  const size = 60;
+  const stroke = 7;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const frac = Math.min(1, done / Math.max(1, goal));
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-        <Circle cx={size / 2} cy={size / 2} r={r} stroke={colors.bg} strokeWidth={stroke} fill="none" />
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke={colors.border} strokeWidth={stroke} fill="none" />
         {frac > 0 ? (
           <Circle
             cx={size / 2}
@@ -237,14 +237,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: space(4),
-    backgroundColor: colors.cardRaised,
+    backgroundColor: colors.card,
     borderRadius: radius.lg,
-    borderBottomWidth: 6,
-    borderBottomColor: '#3A0E2B',
     padding: space(4),
   },
-  goalTitle: { fontFamily: fonts.display, fontSize: 20, lineHeight: 25, color: colors.text },
-  ringText: { fontFamily: fonts.displayBold, fontSize: 18, color: colors.text },
+  goalTitle: { fontFamily: fonts.display, fontSize: 18, lineHeight: 23, color: colors.text },
+  ringText: { fontFamily: fonts.displayBold, fontSize: 16, color: colors.text },
   switcher: { marginHorizontal: -space(5), flexGrow: 0 },
   switcherRow: { paddingHorizontal: space(5), gap: space(2) },
   tab: {
@@ -254,10 +252,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: space(3),
     paddingVertical: space(2),
     borderRadius: 999,
-    borderWidth: 2,
-    borderColor: colors.border,
   },
-  tabOn: { backgroundColor: colors.cardRaised, borderColor: colors.pink },
+  tabOn: { backgroundColor: colors.card },
   tabText: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.muted },
   finished: { alignItems: 'center', gap: space(2), marginTop: space(2) },
 });

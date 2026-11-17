@@ -38,7 +38,7 @@ const PAD = 8;
 
 const STATE_STYLE: Record<NodeState, { border: string; bg: string; ink: string }> = {
   idle: { border: colors.border, bg: colors.cardRaised, ink: colors.text },
-  selected: { border: colors.pink, bg: '#6A1F52', ink: colors.text },
+  selected: { border: colors.pink, bg: colors.chosen, ink: colors.text },
   right: { border: colors.jade, bg: colors.jadeBg, ink: colors.jadeText },
   wrong: { border: colors.ruby, bg: colors.rubyBg, ink: colors.rubyText },
 };
@@ -255,7 +255,7 @@ function FlowDot({ points, slow, delay }: { points: Pt[]; slow: boolean; delay: 
 
 const styles = StyleSheet.create({
   panel: {
-    backgroundColor: '#1F0815',
+    backgroundColor: colors.panel,
     borderRadius: radius.md,
     borderWidth: 2,
     borderColor: colors.border,

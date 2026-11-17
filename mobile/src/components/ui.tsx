@@ -7,7 +7,7 @@ type Variant = 'primary' | 'secondary' | 'jade' | 'ruby';
 
 const VARIANTS: Record<Variant, { face: string; edge: string; ink: string }> = {
   primary: { face: colors.pink, edge: colors.pinkDark, ink: colors.pinkInk },
-  secondary: { face: colors.cardRaised, edge: '#3A0E2B', ink: colors.text },
+  secondary: { face: colors.cardRaised, edge: colors.edge, ink: colors.text },
   jade: { face: colors.jade, edge: colors.jadeDark, ink: '#F0FFF7' },
   ruby: { face: colors.ruby, edge: colors.rubyDark, ink: '#FFF0F2' },
 };
@@ -66,11 +66,11 @@ export function Chip({ label, selected, onPress }: { label: string; selected: bo
       onPress={onPress}
       style={({ pressed }) => [
         styles.chip,
-        selected && { backgroundColor: colors.pink, borderColor: colors.pink, borderBottomColor: colors.pinkDark },
+        selected && { backgroundColor: colors.chosen, borderColor: colors.pink, borderBottomColor: colors.pinkDark },
         pressed && { borderBottomWidth: 1, marginTop: 3 },
       ]}
     >
-      <Text style={[styles.chipText, selected && { color: colors.pinkInk }]}>{label}</Text>
+      <Text style={[styles.chipText, !selected && { color: colors.muted }]}>{label}</Text>
     </Pressable>
   );
 }

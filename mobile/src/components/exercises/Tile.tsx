@@ -15,8 +15,8 @@ export type ExerciseProps = {
 export type TileState = 'idle' | 'chosen' | 'right' | 'wrong';
 
 export const TILE: Record<TileState, { bg: string; border: string; edge: string; key: string; keyInk: string }> = {
-  idle: { bg: colors.card, border: colors.border, edge: '#2F0D24', key: colors.cardRaised, keyInk: colors.muted },
-  chosen: { bg: '#4A1638', border: colors.pink, edge: colors.pinkDark, key: colors.pink, keyInk: colors.pinkInk },
+  idle: { bg: colors.card, border: colors.border, edge: colors.edge, key: colors.cardRaised, keyInk: colors.muted },
+  chosen: { bg: colors.chosen, border: colors.pink, edge: colors.pinkDark, key: colors.pink, keyInk: colors.pinkInk },
   right: { bg: colors.jadeBg, border: colors.jade, edge: colors.jadeDark, key: colors.jade, keyInk: '#F0FFF7' },
   wrong: { bg: colors.rubyBg, border: colors.ruby, edge: colors.rubyDark, key: colors.ruby, keyInk: '#FFF0F2' },
 };

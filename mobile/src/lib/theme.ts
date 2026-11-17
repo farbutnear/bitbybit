@@ -1,14 +1,20 @@
 import { Platform, type TextStyle } from 'react-native';
 
-/** Raspberry night: dark berry surfaces, hot pink for action, jade/ruby for right/wrong. */
+/**
+ * Quiet dark plum surfaces, with the bright colours rationed: pink for the one thing to do
+ * next, gold for the streak, jade and ruby for right and wrong.
+ */
 export const colors = {
-  bg: '#2A0B1D',
-  card: '#3E1230',
-  cardRaised: '#521740',
-  border: '#5C1E47',
-  text: '#FFE9F3',
-  muted: '#D49AB8',
-  faint: '#9C6A86',
+  bg: '#1B1219',
+  card: '#281C26',
+  cardRaised: '#33242F',
+  border: '#3A2A36',
+  edge: '#120B10', // the dark bottom edge that makes a tile look pressable
+  panel: '#140D12', // inset areas such as diagrams
+  chosen: '#3A1F33', // a selected tile: a pink-tinted surface, not a pink fill
+  text: '#F6EEF3',
+  muted: '#B9A6B3',
+  faint: '#7E6C79',
 
   pink: '#FF6FB8',
   pinkDark: '#C43585',

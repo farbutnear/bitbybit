@@ -1,22 +1,22 @@
 /**
- * The learning path for one track: a bold banner per unit, then its lessons as big
- * tappable discs along a winding trail. Done lessons are filled in, the next one wears a
- * gold ring with a "Start" flag and the llama beside it, later ones are locked.
+ * The learning path for one track: a plain header per unit, then its lessons as discs on
+ * a thin winding trail. Only the next lesson is pink (and has the llama beside it); done
+ * lessons are quiet discs with a tick, later ones are dashed outlines.
  */
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Defs, Ellipse, Path, Pattern, Rect } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 
 import type { PathLesson, TrackPath } from '../lib/api';
-import { colors, fonts, radius, space } from '../lib/theme';
+import { colors, fonts, space } from '../lib/theme';
 import { Icon, trackIcon, type IconName } from './Icon';
 import { Mascot } from './Mascot';
 
-const NODE = 80;
-const ROW = 164; // vertical distance between discs
-const TOP = 44; // room above the first disc for the "Start" flag
+const NODE = 76;
+const ROW = 150; // vertical distance between discs
+const TOP = 18;
 const LABEL_W = 180;
-const MASCOT = 104;
+const MASCOT = 100;
 // Horizontal sway of the trail, repeating every 8 lessons.
 const SWAY = [0, 48, 68, 48, 0, -48, -68, -48];
 
@@ -27,23 +27,18 @@ export function PathView({ path, onOpen }: { path: TrackPath; onOpen: (lesson: P
   const starts = path.units.map((_, i) => path.units.slice(0, i).reduce((n, u) => n + u.lessons.length, 0));
 
   return (
-    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={{ gap: space(2) }}>
+    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={{ gap: space(4) }}>
       {path.units.map((unit, unitIndex) => {
         const done = unit.lessons.filter((l) => l.status === 'done').length;
         return (
           <View key={unit.id}>
-            <View style={styles.banner}>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={styles.bannerKicker}>
-                  Unit {unit.number}, {done} of {unit.lessons.length} lessons
-                </Text>
-                <Text style={styles.bannerTitle}>{unit.title}</Text>
-                <View style={styles.bannerTrack}>
-                  <View style={[styles.bannerFill, { width: `${(done / Math.max(1, unit.lessons.length)) * 100}%` }]} />
-                </View>
-              </View>
-              <View style={styles.bannerIcon}>
-                <Icon name={icon} size={30} color={colors.pink} strokeWidth={2.6} />
+            <View style={styles.header}>
+              <Text style={styles.kicker}>
+                Unit {unit.number}, {done} of {unit.lessons.length} lessons
+              </Text>
+              <Text style={styles.title}>{unit.title}</Text>
+              <View style={styles.track}>
+                <View style={[styles.fill, { width: `${(done / Math.max(1, unit.lessons.length)) * 100}%` }]} />
               </View>
             </View>
             {width > 0 ? (
@@ -73,17 +68,11 @@ function Trail({
     x: width / 2 + SWAY[(start + i) % SWAY.length],
     y: TOP + i * ROW + NODE / 2,
   }));
-  const height = TOP + (lessons.length - 1) * ROW + NODE + 70;
+  const height = TOP + (lessons.length - 1) * ROW + NODE + 62;
 
   return (
     <View style={{ height }}>
       <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
-        <Defs>
-          <Pattern id="dots" width={22} height={22} patternUnits="userSpaceOnUse">
-            <Circle cx={2} cy={2} r={1.4} fill={colors.card} />
-          </Pattern>
-        </Defs>
-        <Rect width={width} height={height} fill="url(#dots)" />
         {pts.slice(0, -1).map((a, i) => {
           const b = pts[i + 1];
           const walked = lessons[i].status === 'done';
@@ -91,16 +80,14 @@ function Trail({
             <Path
               key={i}
               d={`M${a.x} ${a.y} C${a.x} ${a.y + ROW / 2} ${b.x} ${b.y - ROW / 2} ${b.x} ${b.y}`}
-              stroke={walked ? colors.pinkDark : colors.cardRaised}
-              strokeWidth={16}
+              stroke={walked ? colors.faint : colors.border}
+              strokeWidth={6}
               strokeLinecap="round"
+              strokeDasharray={walked ? undefined : '1 14'}
               fill="none"
             />
           );
         })}
-        {pts.map((p, i) => (
-          <Ellipse key={i} cx={p.x} cy={p.y + NODE / 2 + 3} rx={NODE / 2 - 2} ry={9} fill="#18050F" />
-        ))}
       </Svg>
 
       {lessons.map((lesson, i) => {
@@ -113,15 +100,9 @@ function Trail({
         return (
           <View key={lesson.id}>
             {isNext ? (
-              <>
-                <View style={{ position: 'absolute', left: mascotLeft, top: top - 22 }} pointerEvents="none">
-                  <Mascot mood="idle" size={MASCOT} />
-                </View>
-                <View style={[styles.flag, { left: x - 36, top: top - 40 }]} pointerEvents="none">
-                  <Text style={styles.flagText}>Start</Text>
-                  <View style={styles.flagTail} />
-                </View>
-              </>
+              <View style={{ position: 'absolute', left: mascotLeft, top: top - 22 }} pointerEvents="none">
+                <Mascot mood="idle" size={MASCOT} />
+              </View>
             ) : null}
             <Pressable
               accessibilityRole="button"
@@ -134,20 +115,24 @@ function Trail({
                 { left: x - NODE / 2, top },
                 lesson.status === 'done' && styles.nodeDone,
                 isNext && styles.nodeNext,
-                pressed && { borderBottomWidth: 3, marginTop: 5 },
+                locked && styles.nodeLocked,
+                pressed && { borderBottomWidth: 2, marginTop: 4 },
               ]}
             >
               {lesson.status === 'done' ? (
-                <Icon name="check" size={36} color={colors.pinkInk} strokeWidth={3.4} />
+                <Icon name="check" size={32} color={colors.pink} strokeWidth={3.2} />
               ) : locked ? (
-                <Icon name="lock" size={28} color={colors.faint} />
+                <Icon name="lock" size={26} color={colors.faint} />
               ) : (
-                <Icon name={icon} size={36} color={colors.pinkInk} strokeWidth={2.8} />
+                <Icon name={icon} size={34} color={colors.pinkInk} strokeWidth={2.8} />
               )}
             </Pressable>
-            <View style={[styles.label, { left: x - LABEL_W / 2, top: top + NODE + 12 }]} pointerEvents="none">
+            <View style={[styles.label, { left: x - LABEL_W / 2, top: top + NODE + 8 }]} pointerEvents="none">
               <View style={styles.labelBack}>
-                <Text style={[styles.labelText, locked && { color: colors.faint }]} numberOfLines={2}>
+                <Text
+                  style={[styles.labelText, isNext && styles.labelNext, locked && { color: colors.faint }]}
+                  numberOfLines={2}
+                >
                   {lesson.title}
                 </Text>
               </View>
@@ -160,29 +145,11 @@ function Trail({
 }
 
 const styles = StyleSheet.create({
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space(3),
-    backgroundColor: colors.pink,
-    borderRadius: radius.lg,
-    borderBottomWidth: 6,
-    borderBottomColor: colors.pinkDark,
-    paddingVertical: space(4),
-    paddingHorizontal: space(4),
-  },
-  bannerKicker: { fontFamily: fonts.bodyBold, fontSize: 13, color: '#6B1747' },
-  bannerTitle: { fontFamily: fonts.displayBold, fontSize: 24, lineHeight: 28, color: colors.pinkInk },
-  bannerTrack: { height: 8, borderRadius: 4, backgroundColor: colors.pinkDark, marginTop: space(2), overflow: 'hidden' },
-  bannerFill: { height: 8, borderRadius: 4, backgroundColor: colors.pinkInk },
-  bannerIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.pinkInk,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  header: { gap: 2, paddingHorizontal: space(1), paddingBottom: space(2) },
+  kicker: { fontFamily: fonts.bodyBold, fontSize: 13, color: colors.faint },
+  title: { fontFamily: fonts.displayBold, fontSize: 24, lineHeight: 29, color: colors.text },
+  track: { height: 5, borderRadius: 3, backgroundColor: colors.border, marginTop: space(2), overflow: 'hidden' },
+  fill: { height: 5, borderRadius: 3, backgroundColor: colors.pink },
   node: {
     position: 'absolute',
     width: NODE,
@@ -190,34 +157,18 @@ const styles = StyleSheet.create({
     borderRadius: NODE / 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.cardRaised,
-    borderWidth: 3,
-    borderBottomWidth: 8,
+    backgroundColor: colors.card,
+    borderWidth: 2,
+    borderBottomWidth: 6,
     borderColor: colors.border,
-    borderBottomColor: '#3A0E2B',
+    borderBottomColor: colors.edge,
   },
-  nodeDone: { backgroundColor: colors.pink, borderColor: colors.pink, borderBottomColor: colors.pinkDark },
-  nodeNext: { backgroundColor: colors.pink, borderWidth: 4, borderColor: colors.gold, borderBottomColor: colors.goldDark },
-  flag: {
-    position: 'absolute',
-    width: 72,
-    alignItems: 'center',
-    backgroundColor: colors.gold,
-    borderRadius: 10,
-    paddingVertical: 3,
-  },
-  flagText: { fontFamily: fonts.displayBold, fontSize: 15, color: colors.pinkInk },
-  flagTail: {
-    position: 'absolute',
-    bottom: -5,
-    width: 12,
-    height: 12,
-    backgroundColor: colors.gold,
-    transform: [{ rotate: '45deg' }],
-    zIndex: -1,
-  },
+  nodeDone: { backgroundColor: colors.card },
+  nodeNext: { backgroundColor: colors.pink, borderColor: colors.pink, borderBottomColor: colors.pinkDark },
+  nodeLocked: { backgroundColor: colors.bg, borderStyle: 'dashed', borderBottomWidth: 2 },
   label: { position: 'absolute', width: LABEL_W, alignItems: 'center' },
   // Solid backing so the trail passes behind the title instead of through it.
   labelBack: { backgroundColor: colors.bg, borderRadius: 10, paddingHorizontal: space(2), paddingVertical: 3 },
-  labelText: { fontFamily: fonts.bodyBold, fontSize: 15, lineHeight: 19, color: colors.text, textAlign: 'center' },
+  labelText: { fontFamily: fonts.body, fontSize: 14, lineHeight: 18, color: colors.muted, textAlign: 'center' },
+  labelNext: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.text },
 });

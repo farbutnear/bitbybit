@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderBottomWidth: 5,
     borderColor: colors.border,
-    borderBottomColor: '#2F0D24',
+    borderBottomColor: colors.edge,
     paddingVertical: space(2),
     paddingHorizontal: space(3),
   },
