@@ -322,3 +322,29 @@ def test_lessons_still_play_end_to_end_with_sessions(client, session_factory):
     assert all(r["rolled_back"] is False for r in results) and done["first_time"]
     assert client.get(f"/users/{uid}/review?practice=true").json()["session"]["perks"]["second_try"] == 0
     assert client.get(f"/users/{uid}/review").json()["session"] is None  # nothing due: no run to start
+
+
+def test_uptime_history_marks_met_frozen_missed_and_today(client, session_factory, clock):
+    uid = make_user(client, goal=1)["id"]  # starts with one streak freeze
+
+    def practise():
+        review(client, uid, MCQ, right_answer(session_factory, MCQ))
+
+    clock.now += timedelta(days=3)  # nothing on the first three days
+    practise()  # met
+    clock.now += timedelta(days=1)
+    practise()  # met
+    clock.now += timedelta(days=2)  # one day skipped: the freeze covers it
+    practise()  # met
+    clock.now += timedelta(days=1)  # today, nothing yet
+
+    user = client.get(f"/users/{uid}").json()
+    history = user["history"]
+    assert len(history) == 14 and history[-1]["count"] == 0
+    assert [h["state"] for h in history[-5:]] == ["met", "met", "frozen", "met", "today"]
+    assert all(h["state"] == "missed" for h in history[:-5])
+    assert user["streak"]["current"] == 3
+
+    practise()
+    last = client.get(f"/users/{uid}").json()["history"][-1]
+    assert last["state"] == "met" and last["count"] == 1

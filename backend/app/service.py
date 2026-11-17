@@ -1,7 +1,7 @@
 """Core application logic, kept separate from HTTP so the worker and tests can call it directly."""
 
 import random
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select, update
@@ -55,6 +55,45 @@ def has_push(db: Session, user: User) -> bool:
     return db.scalar(select(func.count()).select_from(PushToken).where(PushToken.user_id == user.id)) > 0
 
 
+def uptime_history(db: Session, user: User, today: date, days: int = 14) -> list[dict]:
+    """The last `days` local days, oldest first, for the uptime bar on the home screen.
+
+    met: the daily goal was reached. frozen: missed, but a freeze kept the streak alive.
+    missed: nothing held. today: still in progress.
+    """
+    start = today - timedelta(days=days - 1)
+    counts = dict(
+        db.execute(
+            select(Review.local_date, func.count())
+            .where(Review.user_id == user.id, Review.local_date >= start)
+            .group_by(Review.local_date)
+        ).all()
+    )
+    s = streak_state(user)
+    # Walk back from the last goal day through the live streak: gaps inside it were covered by freezes.
+    frozen: set[date] = set()
+    if s.last_goal_date and displayed_streak(s, today) > 0:
+        remaining, day = s.current, s.last_goal_date
+        while remaining > 0 and day >= start:
+            if counts.get(day, 0) >= user.daily_goal or day == s.last_goal_date:
+                remaining -= 1
+            else:
+                frozen.add(day)
+            day -= timedelta(days=1)
+    out = []
+    for i in range(days):
+        day = start + timedelta(days=i)
+        count = counts.get(day, 0)
+        if day == today and user.last_goal_date != today:
+            state = "today"
+        elif count >= user.daily_goal or day == s.last_goal_date:
+            state = "met"
+        else:
+            state = "frozen" if day in frozen else "missed"
+        out.append({"date": day.isoformat(), "state": state, "count": count})
+    return out
+
+
 # ---------- users ----------
 
 def refresh_reminder(db: Session, user: User, now: datetime) -> None:
@@ -90,6 +129,7 @@ def user_summary(db: Session, user: User, now: datetime) -> dict:
         "due_count": due_count(db, user, now),
         "learned_count": learned_count(db, user),
         "has_push": has_push(db, user),
+        "history": uptime_history(db, user, today),
         "bits": user.bits,
         "bits_earned": user.bits_earned,
         "equipped": loot.equipped(db, user),
