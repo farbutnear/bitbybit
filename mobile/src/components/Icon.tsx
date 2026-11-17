@@ -16,6 +16,14 @@ export type IconName =
   | 'review'
   | 'plus'
   | 'api'
+  | 'users'
+  | 'lb'
+  | 'gear'
+  | 'globe'
+  | 'box'
+  | 'learn'
+  | 'user'
+  | 'minus'
   | 'estimation'
   | 'compute'
   | 'storage'
@@ -86,6 +94,61 @@ export function Icon({ name, size = 24, color = colors.text, strokeWidth = 2.2 }
       break;
     case 'api':
       body = <Path {...s} d="M8.5 7 3.5 12l5 5M15.5 7l5 5-5 5M13.5 5l-3 14" />;
+      break;
+    case 'users':
+      body = (
+        <>
+          <Circle {...s} cx={12} cy={8} r={3.6} />
+          <Path {...s} d="M5 20c.6-4 3.4-6 7-6s6.4 2 7 6" />
+        </>
+      );
+      break;
+    case 'user':
+      body = (
+        <>
+          <Circle {...s} cx={12} cy={8.5} r={3.8} />
+          <Path {...s} d="M4.5 20.5c.8-4.2 3.8-6.3 7.5-6.3s6.7 2.1 7.5 6.3" />
+        </>
+      );
+      break;
+    case 'lb':
+      body = (
+        <>
+          <Path {...s} d="M3 12h6M9 12c3 0 3-6 6-6h5M9 12c3 0 3 6 6 6h5M9 12h11" />
+          <Path {...s} d="M17.5 3.5 20 6l-2.5 2.5M17.5 9.5 20 12l-2.5 2.5M17.5 15.5 20 18l-2.5 2.5" />
+        </>
+      );
+      break;
+    case 'gear':
+      body = (
+        <>
+          <Circle {...s} cx={12} cy={12} r={3.2} />
+          <Path {...s} d="M12 3v2.6M12 18.4V21M3 12h2.6M18.4 12H21M5.6 5.6l1.9 1.9M16.5 16.5l1.9 1.9M18.4 5.6l-1.9 1.9M7.5 16.5l-1.9 1.9" />
+        </>
+      );
+      break;
+    case 'globe':
+      body = (
+        <>
+          <Circle {...s} cx={12} cy={12} r={8.5} />
+          <Path {...s} d="M3.5 12h17M12 3.5c2.6 2.4 3.8 5.2 3.8 8.5s-1.2 6.1-3.8 8.5c-2.6-2.4-3.8-5.2-3.8-8.5s1.2-6.1 3.8-8.5z" />
+        </>
+      );
+      break;
+    case 'box':
+      body = <Path {...s} d="M4 8l8-4 8 4v8l-8 4-8-4V8zM4 8l8 4 8-4M12 12v8" />;
+      break;
+    case 'learn':
+      body = (
+        <>
+          <Circle {...s} cx={6} cy={18} r={2.4} />
+          <Circle {...s} cx={18} cy={6} r={2.4} />
+          <Path {...s} d="M8.4 18H14a3.5 3.5 0 0 0 0-7h-4a3.5 3.5 0 0 1 0-7h5.6" />
+        </>
+      );
+      break;
+    case 'minus':
+      body = <Path {...s} d="M5 12h14" />;
       break;
     case 'estimation':
       body = (

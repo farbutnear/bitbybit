@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import type { TeachStep } from '../lib/api';
 import { colors, fonts, radius, space } from '../lib/theme';
+import { Diagram } from './Diagram';
 import { Mascot } from './Mascot';
 
 /** A teaching screen: one idea, a few sentences, and the llama's take on it. */
@@ -10,6 +11,7 @@ export function TeachScreen({ step }: { step: TeachStep }) {
     <View style={{ gap: space(5) }}>
       <View style={{ gap: space(3) }}>
         <Text style={styles.title}>{step.title}</Text>
+        {step.diagram ? <Diagram diagram={step.diagram} /> : null}
         <Text style={styles.body}>{step.body}</Text>
       </View>
       {step.llama ? (

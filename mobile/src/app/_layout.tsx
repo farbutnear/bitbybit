@@ -59,10 +59,9 @@ export default function RootLayout() {
             contentStyle: { backgroundColor: colors.bg },
           }}
         >
-          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="lesson" options={{ headerShown: false, gestureEnabled: false, presentation: 'fullScreenModal' }} />
-          <Stack.Screen name="settings" options={{ title: 'Settings' }} />
           <Stack.Screen name="tracks" options={{ title: 'Your tracks' }} />
         </Stack>
       </UserProvider>

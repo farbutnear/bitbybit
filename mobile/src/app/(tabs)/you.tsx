@@ -1,9 +1,12 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Card, Chip, SectionTitle } from '../components/ui';
-import { api, API_URL } from '../lib/api';
+import { Icon, type IconName } from '../../components/Icon';
+import { Mascot } from '../../components/Mascot';
+import { Button, Card, Chip, SectionTitle } from '../../components/ui';
+import { api, API_URL } from '../../lib/api';
 import {
   getPermissionStatus,
   isExpoGo,
@@ -12,18 +15,19 @@ import {
   scheduleLocalReminders,
   sendTestLocalNotification,
   serverPushAvailability,
-} from '../lib/notifications';
-import { deviceTimezone, formatHour, GOALS, REMINDER_HOURS } from '../lib/prefs';
-import { colors, fonts, space } from '../lib/theme';
-import { useUser } from '../lib/UserContext';
+} from '../../lib/notifications';
+import { deviceTimezone, formatHour, GOALS, REMINDER_HOURS } from '../../lib/prefs';
+import { colors, fonts, radius, space, type } from '../../lib/theme';
+import { useUser } from '../../lib/UserContext';
 
 function notify(title: string, message: string) {
   if (Platform.OS === 'web') window.alert(`${title}\n\n${message}`);
   else Alert.alert(title, message);
 }
 
-export default function Settings() {
-  const { user, setUser, signOut } = useUser();
+/** Your progress at a glance, plus every setting. */
+export default function You() {
+  const { user, setUser, signOut, refresh } = useUser();
   const [permission, setPermission] = useState<string>('…');
   const [busy, setBusy] = useState<string | null>(null);
   const push = serverPushAvailability();
@@ -31,8 +35,9 @@ export default function Settings() {
 
   useFocusEffect(
     useCallback(() => {
+      refresh();
       getPermissionStatus().then(setPermission);
-    }, []),
+    }, [refresh]),
   );
 
   if (!user) return null;
@@ -57,8 +62,41 @@ export default function Settings() {
 
   const mode = user.has_push ? 'Server push (backend worker)' : 'Local reminders on this device';
 
+  const { streak } = user;
+
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
     <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.header}>
+        <Mascot mood={user.goal_met_today ? 'happy' : 'idle'} size={96} />
+        <View style={{ flex: 1 }}>
+          <Text style={type.title}>{user.name}</Text>
+          <Text style={type.small}>
+            {user.learned_count === 0
+              ? 'No cards learned yet. Your first lesson is waiting.'
+              : `${user.learned_count} card${user.learned_count === 1 ? '' : 's'} learned so far.`}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.grid}>
+        <Stat icon="flame" value={streak.current} label="day streak" tint={colors.gold} />
+        <Stat icon="trophy" value={streak.longest} label="best streak" tint={colors.pink} />
+        <Stat icon="freeze" value={streak.freezes} label={streak.freezes === 1 ? 'streak freeze' : 'streak freezes'} tint={colors.ice} />
+        <Stat icon="review" value={user.due_count} label="due for review" tint={colors.jadeText} />
+      </View>
+
+      <Pressable accessibilityRole="button" onPress={() => router.push('/tracks')} style={styles.link}>
+        <Icon name="learn" size={22} color={colors.pink} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.linkTitle}>Your tracks</Text>
+          <Text style={type.small}>
+            {user.track_ids.length} chosen. Add or drop areas of system design.
+          </Text>
+        </View>
+        <Text style={styles.chev}>›</Text>
+      </Pressable>
+
       <View>
         <SectionTitle>Daily goal</SectionTitle>
         <View style={styles.chips}>
@@ -169,6 +207,17 @@ export default function Settings() {
         />
       </Card>
     </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function Stat({ icon, value, label, tint }: { icon: IconName; value: number; label: string; tint: string }) {
+  return (
+    <View style={styles.stat}>
+      <Icon name={icon} size={24} color={icon === 'flame' ? undefined : tint} />
+      <Text style={[styles.statValue, { color: tint }]}>{value}</Text>
+      <Text style={type.tiny}>{label}</Text>
+    </View>
   );
 }
 
@@ -183,6 +232,33 @@ function Row({ k, v }: { k: string; v: string }) {
 
 const styles = StyleSheet.create({
   container: { padding: space(5), gap: space(5), paddingBottom: space(12) },
+  header: { flexDirection: 'row', alignItems: 'center', gap: space(3) },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space(3) },
+  stat: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderColor: colors.border,
+    padding: space(3),
+    gap: 2,
+  },
+  statValue: { fontFamily: fonts.displayBold, fontSize: 30, lineHeight: 34 },
+  link: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space(3),
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    borderWidth: 2,
+    borderBottomWidth: 5,
+    borderColor: colors.border,
+    padding: space(4),
+  },
+  linkTitle: { fontFamily: fonts.display, fontSize: 18, color: colors.text },
+  chev: { fontFamily: fonts.displayBold, fontSize: 26, color: colors.faint },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space(2) },
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: space(4) },
   key: { color: colors.muted, fontSize: 15, fontFamily: fonts.body },

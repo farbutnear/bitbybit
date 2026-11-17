@@ -8,19 +8,19 @@
 **System design, one bit at a time.** Duolingo-style daily practice for system design: five-minute drills, spaced repetition so you actually remember them, a daily streak, and a nudge when the streak is at risk.
 
 <p align="center">
-  <img src="docs/screenshots/onboarding.png" width="180" alt="Choosing tracks" />
-  <img src="docs/screenshots/teach.png" width="180" alt="A teaching screen" />
-  <img src="docs/screenshots/home.png" width="180" alt="Home screen with streak and the lesson path" />
-  <img src="docs/screenshots/lesson.png" width="180" alt="Multiple-choice question" />
-  <img src="docs/screenshots/wrong.png" width="180" alt="Wrong-answer panel" />
-  <img src="docs/screenshots/feedback.png" width="180" alt="Right-answer panel with daily goal hit" />
+  <img src="docs/screenshots/home.png" width="180" alt="Learn tab with the lesson path" />
+  <img src="docs/screenshots/teach.png" width="180" alt="A teaching screen with a live diagram" />
+  <img src="docs/screenshots/build.png" width="180" alt="Build-it exercise" />
+  <img src="docs/screenshots/spot.png" width="180" alt="Find-the-fault exercise" />
+  <img src="docs/screenshots/slider.png" width="180" alt="Estimate slider" />
 </p>
 
 ## Features
 
 - **Choose what to learn:** system design is split into tracks (Foundations, Scaling, Storage, Caching, Async, Consistency, with APIs and networking next). Pick any, switch any time
 - **Lessons that teach, then test:** each lesson alternates a short teaching screen with a drill on that exact idea, laid out as a path you unlock lesson by lesson
-- **Three drill types so far:** multiple choice (some with architecture diagrams), put-the-steps-in-order, and back-of-envelope estimates graded within a tolerance
+- **Seven exercise types:** build it (drop components into an architecture diagram), find the fault (tap the failing part), match up, estimate on a log-scale slider, put in order, work out a number, and multiple choice
+- **Live diagrams:** architectures are drawn from data, with request dots flowing along the wires on teaching screens
 - **FSRS spaced repetition** in a separate review queue, so each card you've learned comes back right before you'd forget it
 - **Daily streak** in your local timezone, with streak freezes
 - **Streak reminders** as local notifications (work in Expo Go) or server push via a backend worker
@@ -88,7 +88,7 @@ Install **Expo Go** on your phone and scan the QR code. The app finds the backen
 **Tests**
 
 ```bash
-cd backend && pytest            # 42 tests: course rules, streaks, DST, grading, reminders, push, API flows
+cd backend && pytest            # 47 tests: course rules, every grader, a full-course playthrough, streaks, DST, grading, reminders, push, API flows
 cd mobile && npm run typecheck
 ```
 
@@ -102,7 +102,7 @@ cd mobile && npm run typecheck
 
 **How reminders work.** By default the phone schedules its own reminders: one per day for the next 7 days at your reminder time. Today's is skipped once you've met your goal. They're rescheduled every time the app opens or you finish a lesson. When the app registers a push token (only possible outside Expo Go), the backend worker takes over and local reminders are cancelled, so you never get both.
 
-**Test local reminders (any phone, Expo Go):** Settings → *Send test reminder in 5s*, then lock the phone.
+**Test local reminders (any phone, Expo Go):** You tab → *Send test reminder in 5s*, then lock the phone.
 
 **Test push handling on the iOS Simulator (Mac, no Apple account):**
 
@@ -118,7 +118,7 @@ xcrun simctl push booted com.farbutnear.bitbybit push-test/payload.apns
 1. `npm i -g eas-cli && eas login && eas init` (adds your EAS `projectId` to app.json).
 2. Create a Firebase project, add an Android app with package `com.farbutnear.bitbybit`, and upload its FCM V1 service account key with `eas credentials` ([Expo guide](https://docs.expo.dev/push-notifications/fcm-credentials/)).
 3. `npx expo install expo-dev-client && eas build --profile development --platform android`, then install the APK.
-4. In the app: Settings → *Enable server push* → *Send test server push*.
+4. In the app: You tab → *Enable server push* → *Send test server push*.
 5. With `python -m app.worker` running, reminders now come from the server. To trigger the worker without waiting: `curl -X POST localhost:8000/debug/run-reminders`.
 
 iPhone server push is the same flow with `--platform ios`. It needs an Apple Developer account for the push entitlement.
@@ -165,8 +165,9 @@ backend/
     content/cards.json   the cards lessons refer to
   tests/
 mobile/
-  src/app/           screens: index (home path), onboarding, lesson, tracks, settings
-  src/components/    path view, track picker, teach screen, question cards, result panel, UI kit
+  src/app/           (tabs)/ Learn, Review and You; plus onboarding, lesson and tracks
+  src/components/    Diagram, path view, track picker, teach screen, result panel, UI kit
+  src/components/exercises/   one component per card kind
   src/lib/           api client, notifications, user context, theme
 docker-compose.yml   Postgres + API + worker
 ```
@@ -184,15 +185,32 @@ Content lives in two files in `backend/app/content/`, upserted when the API star
 ] }
 ```
 
-A track with no units is listed in the app as "Coming next". `cards.json` holds the cards, each with the `track` it belongs to. Three card kinds:
+A track with no units is listed in the app as "Coming next". A teaching screen can also carry a `diagram`.
+
+`cards.json` holds the cards, each with the `track` it belongs to. Seven kinds:
 
 ```jsonc
-{ "kind": "mcq",     "data": { "options": ["…"], "answer": 1, "diagram": "optional ASCII" } }
+{ "kind": "mcq",     "data": { "options": ["…"], "answer": 1, "diagram": { /* optional */ } } }
 { "kind": "order",   "data": { "items": ["first", "second", "third"] } }   // items in the correct order
-{ "kind": "numeric", "data": { "answer": 2315, "tolerance": 1.5, "unit": "req/s", "hint": "optional" } }
+{ "kind": "numeric", "data": { "answer": 12, "tolerance": 1.0, "unit": "servers", "hint": "optional" } }
+{ "kind": "slider",  "data": { "min": 10, "max": 1000000, "answer": 2315, "tolerance": 1.5, "unit": "req/s" } }
+{ "kind": "spot",    "data": { "diagram": { /* … */ }, "answer": "app3" } }              // id of the faulty node
+{ "kind": "build",   "data": { "diagram": { /* with slot nodes */ }, "slots": { "s1": "cache" }, "bank": ["cache", "queue", "cdn"] } }
+{ "kind": "match",   "data": { "pairs": [["Duplicate deliveries", "Idempotent consumer"], ["…", "…"]] } }
 ```
 
-`pytest` checks that every card's answer grades as correct against itself, that every card is taught in exactly one lesson on its own track, and that each lesson opens with a teaching screen.
+`tolerance` is a ratio: 1.5 means within 1.5× either way. A diagram is nodes on a grid up to four columns wide, edges that run left to right, and optional animated flows:
+
+```jsonc
+{ "nodes": [ { "id": "app", "kind": "app", "label": "App", "x": 1, "y": 0.5, "note": "p99 40 ms" },
+             { "id": "s1", "kind": "slot", "x": 2, "y": 0 } ],
+  "edges": [["app", "s1"]],
+  "flows": [ { "path": ["users", "app"], "speed": "fast" } ] }
+```
+
+Node kinds: `client`, `lb`, `app`, `cache`, `db`, `replica`, `queue`, `worker`, `cdn`, `box`, and `slot` (an empty place for a build card; give it no label).
+
+`pytest` checks that every card's answer grades as correct against itself, that diagrams are well formed, that every card is taught in exactly one lesson on its own track, and that the whole course can be played start to finish.
 
 ## Prototype shortcuts to fix before shipping
 
@@ -200,4 +218,4 @@ A track with no units is listed in the app as "Coming next". `cards.json` holds 
 - **Debug routes:** `/debug/*` is on by default. Set `BITBYBIT_ENABLE_DEBUG_ROUTES=false` in production.
 - **Schema:** no migrations. When `SCHEMA_VERSION` in `db.py` changes, the database is rebuilt on startup and all users and progress are lost (the app then sends you back through onboarding). Set `BITBYBIT_RESET_DB_ON_SCHEMA_CHANGE=false` and add Alembic before there is data worth keeping.
 - **Push receipts:** the worker reads Expo push *tickets* but doesn't poll *receipts*, where some delivery errors appear.
-- **Content:** 25 cards in 12 lessons across 6 tracks is enough to feel the loop, not a course. The teaching screens are text only for now.
+- **Content:** 28 cards in 12 lessons across 6 tracks is enough to feel the loop, not a course. Only four teaching screens have diagrams so far.

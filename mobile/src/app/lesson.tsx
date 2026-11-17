@@ -6,7 +6,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Icon } from '../components/Icon';
 import { Mascot } from '../components/Mascot';
-import { formatCorrectAnswer, QuestionCard } from '../components/QuestionCards';
+import { formatCorrectAnswer, KIND_LABEL, QuestionCard } from '../components/exercises';
 import { ResultPanel } from '../components/ResultPanel';
 import { TeachScreen } from '../components/TeachScreen';
 import { Button, ProgressBar } from '../components/ui';
@@ -24,12 +24,6 @@ type Item =
   | { type: 'card'; card: SessionCard; isRetry: boolean; key: string };
 
 type Loaded = { title: string; items: Item[]; learned: number };
-
-const REASON: Record<SessionCard['reason'], { label: string; color: string }> = {
-  new: { label: 'New', color: colors.pink },
-  due: { label: 'Review', color: colors.gold },
-  ahead: { label: 'Practice', color: colors.muted },
-};
 
 function haptic(kind: 'success' | 'error') {
   if (Platform.OS === 'web') return;
@@ -229,7 +223,6 @@ function Player({ lessonId, practice }: { lessonId: string | null; practice: boo
     }
   }
 
-  const tag = item.type === 'card' ? (item.isRetry ? { label: 'Try again', color: colors.rubyText } : REASON[item.card.reason]) : null;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
@@ -258,11 +251,14 @@ function Player({ lessonId, practice }: { lessonId: string | null; practice: boo
           </>
         ) : (
           <>
-            {tag ? (
-              <View style={[styles.reason, { borderColor: tag.color }]}>
-                <Text style={[styles.reasonText, { color: tag.color }]}>{tag.label}</Text>
-              </View>
-            ) : null}
+            <View style={styles.kindRow}>
+              <Text style={styles.context}>{KIND_LABEL[item.card.kind]}</Text>
+              {item.isRetry ? (
+                <View style={styles.retry}>
+                  <Text style={styles.retryText}>Try again</Text>
+                </View>
+              ) : null}
+            </View>
             <QuestionCard key={item.key} card={item.card} result={result} submitting={submitting} onSubmit={submit} />
           </>
         )}
@@ -310,8 +306,9 @@ const styles = StyleSheet.create({
   topStreakText: { fontFamily: fonts.displayBold, fontSize: 18, color: colors.gold },
   body: { padding: space(5), gap: space(4), paddingBottom: space(16) },
   context: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.pink },
-  reason: { alignSelf: 'flex-start', borderWidth: 2, borderRadius: 999, paddingHorizontal: space(3), paddingVertical: 3 },
-  reasonText: { fontFamily: fonts.bodyBold, fontSize: 13 },
+  kindRow: { flexDirection: 'row', alignItems: 'center', gap: space(2) },
+  retry: { borderWidth: 2, borderColor: colors.rubyText, borderRadius: 999, paddingHorizontal: space(2), paddingVertical: 1 },
+  retryText: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.rubyText },
   footer: {
     position: 'absolute',
     left: 0,

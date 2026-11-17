@@ -16,7 +16,15 @@ function resolveBaseUrl(): string {
 
 export const API_URL = resolveBaseUrl();
 
-export type CardKind = 'mcq' | 'order' | 'numeric';
+export type CardKind = 'mcq' | 'order' | 'numeric' | 'slider' | 'spot' | 'build' | 'match';
+
+/** An architecture diagram: nodes on a small grid (x = column, y = row), edges, and optional animated request flows. */
+export type DiagramNode = { id: string; kind: string; label?: string; note?: string; x: number; y: number };
+export type Diagram = {
+  nodes: DiagramNode[];
+  edges: [string, string][];
+  flows?: { path: string[]; speed: 'fast' | 'slow' }[];
+};
 
 export type Streak = { current: number; longest: number; freezes: number; at_risk: boolean };
 
@@ -59,7 +67,7 @@ export type TrackPath = {
   lessons_total: number;
 };
 
-export type TeachStep = { type: 'teach'; title: string; body: string; llama?: string };
+export type TeachStep = { type: 'teach'; title: string; body: string; llama?: string; diagram?: Diagram };
 export type CardStep = { type: 'card'; card: SessionCard };
 export type Lesson = {
   id: string;
@@ -84,19 +92,25 @@ export type SessionCard = {
   prompt: string;
   reason: 'due' | 'new' | 'ahead';
   options?: string[];
-  diagram?: string | null;
+  diagram?: Diagram | null;
   items?: string[];
   unit?: string;
   hint?: string | null;
+  min?: number;
+  max?: number;
+  bank?: string[];
+  left?: string[];
+  right?: string[];
 };
 
 export type ReviewQueue = { cards: SessionCard[]; due_count: number; learned_count: number; next_due: string | null };
 
-export type Answer = number | string[];
+/** mcq: option index. order: items. numeric/slider: number. spot: node id. build: slot -> component. match: [left, right] pairs. */
+export type Answer = number | string | string[] | Record<string, string> | [string, string][];
 
 export type ReviewResult = {
   correct: boolean;
-  correct_answer: number | string[];
+  correct_answer: Answer;
   explanation: string;
   next_due: string | null;
   today_count: number;
