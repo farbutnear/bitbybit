@@ -34,9 +34,9 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: colors.faint,
         tabBarLabelStyle: { fontFamily: fonts.bodyBold, fontSize: 12 },
         tabBarStyle: {
-          backgroundColor: colors.card,
+          backgroundColor: colors.panel,
           borderTopColor: colors.border,
-          borderTopWidth: 2,
+          borderTopWidth: 1,
           height: 62 + insets.bottom,
           paddingTop: 6,
         },
@@ -52,6 +52,7 @@ export default function TabsLayout() {
           tabBarBadgeStyle: { backgroundColor: colors.gold, color: colors.pinkInk, fontFamily: fonts.bodyBold, fontSize: 11 },
         }}
       />
+      <Tabs.Screen name="gear" options={{ title: 'Gear', tabBarIcon: icon('loot') }} />
       <Tabs.Screen name="you" options={{ title: 'You', tabBarIcon: icon('user') }} />
     </Tabs>
   );
